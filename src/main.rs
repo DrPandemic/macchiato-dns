@@ -6,6 +6,9 @@ use tokio::net::UdpSocket;
 
 pub mod network;
 use crate::network::*;
+pub mod dns;
+use crate::dns::*;
+pub mod resource_record;
 
 const DEFAULT_DNS_RESOLVER: &str = "8.8.8.8:53";
 const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:4053";
@@ -24,12 +27,14 @@ async fn main() {
             // TODO: Detect overflow. Longer messages are truncated and the TC bit is set in the header.
             let (buf, src) = recv_datagram(&mut socket).await
                 .expect("couldn't receive datagram");
+            println!("{:?}", buf);
             let mut remote_socket = UdpSocket::bind((local_address, 0)).await
                 .expect("couldn't bind remote resolver to address");
             remote_socket.send_to(&buf[..], DEFAULT_DNS_RESOLVER).await
                 .expect("couldn't send data to remote");
             let (remote_buf, _) = recv_datagram(&mut remote_socket).await
                 .expect("couldn't receive datagram from remote");
+            println!("{:?}", remote_buf);
             socket.send_to(&remote_buf[..], &src).await
                 .expect("failed to send to local socket");
         }
