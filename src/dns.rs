@@ -222,7 +222,7 @@ pub fn parse_name(buffer: &[u8], offset: usize) -> (Vec<String>, usize) {
     (strings, i - offset)
 }
 
-pub fn parse_question<'a>(query: &'a Vec<u8>) -> Message {
+pub fn parse_message<'a>(query: &'a Vec<u8>) -> Message {
     Message { buffer: &query }
 }
 
@@ -241,7 +241,7 @@ mod tests {
     #[test]
     fn test_question_attributes() {
         let buffer = IMATEAPOT_QUESTION.to_vec();
-        let message = parse_question(&buffer);
+        let message = parse_message(&buffer);
         let question = message.question().expect("couldn't parse questions");
         let rrs = message.resource_records().expect("couldn't parse RRs");
 
@@ -271,7 +271,7 @@ mod tests {
     #[test]
     fn test_answer_attributes() {
         let buffer = IMATEAPOT_ANSWER.to_vec();
-        let message = parse_question(&buffer);
+        let message = parse_message(&buffer);
         let question = message.question().expect("couldn't parse questions");
         let rrs = message.resource_records().expect("couldn't parse RRs");
 

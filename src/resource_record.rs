@@ -1,6 +1,7 @@
 // https://tools.ietf.org/html/rfc6891#section-6.1.2
 // RRs with type Opt(41), are not parsed the same. It's the same format, but different names.
 // However, TTL seems to be parsed in multiple entries.
+#[derive(Debug)]
 pub struct ResourceRecord<'a> {
     pub buffer: &'a[u8],
     pub name: Vec<String>,
