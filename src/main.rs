@@ -16,11 +16,12 @@ pub mod filter;
 use crate::filter::*;
 
 const DEFAULT_DNS_RESOLVER: &str = "8.8.8.8:53";
-const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:53";
+// const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:53";
+const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:5553";
 
 #[tokio::main]
 async fn main() {
-    let filter = Filter {};
+    let filter = Filter::from_disk(BlockFileVersion::Ultimate, FilterFormat::Vector).expect("Couldn't load filter");
     let local_address = find_private_ipv4_address()
         .expect("couldn't find local address");
     let mut socket = UdpSocket::bind(DEFAULT_INTERNAL_ADDRESS).await
@@ -30,6 +31,7 @@ async fn main() {
         loop {
             let (query, src) = receive_local(&mut socket).await;
             let remote_answer = if filter_query(&filter, &query) {
+                println!("This was filtered!");
                 generate_deny_response(&query)
             } else {
                 query_remote_dns_server(local_address, query).await
@@ -71,5 +73,5 @@ async fn query_remote_dns_server(local_address: Ipv4Addr, query: Message) -> Mes
 
 fn filter_query(filter: &Filter, query: &Message) -> bool {
     let name = query.question().expect("couldn't parse question").qname();
-    filter.is_filtered(name)
+    filter.is_filtered(name.join("."))
 }
