@@ -1,9 +1,9 @@
 use std::io;
 use tokio::net::{UdpSocket, ToSocketAddrs};
 
-use crate::resource_record::*;
 use crate::helpers::*;
 use crate::question::*;
+use crate::resource_record::*;
 
 pub struct Message {
     buffer: Vec<u8>,

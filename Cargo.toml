@@ -10,3 +10,10 @@ edition = "2018"
 nix = "0.16.1"
 tokio = { version = "0.2", features = ["full"] }
 reqwest = { version = "0.10", features = ["json"] }
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "filter_vector_benchmark"
+harness = false
