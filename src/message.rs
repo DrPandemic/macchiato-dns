@@ -6,7 +6,7 @@ use crate::question::*;
 use crate::resource_record::*;
 
 pub struct Message {
-    buffer: Vec<u8>,
+    pub buffer: Vec<u8>,
 }
 
 #[derive(Debug, PartialEq)]

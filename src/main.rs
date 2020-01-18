@@ -1,8 +1,8 @@
 extern crate nix;
 extern crate tokio;
+extern crate reqwest;
 
 use std::str;
-use std::net::{Ipv4Addr};
 use tokio::net::UdpSocket;
 
 pub mod network;
@@ -16,6 +16,7 @@ use crate::network::*;
 use crate::filter::*;
 
 const DEFAULT_DNS_RESOLVER: &str = "8.8.8.8:53";
+const DEFAULT_DOH_DNS_RESOLVER: &str = "https://1.1.1.1/dns-query";
 // const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:53";
 const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:5553";
 
@@ -29,12 +30,13 @@ async fn main() {
 
     tokio::spawn(async move {
         loop {
-            let (query, src) = receive_local(&mut socket).await;
+            let (query, src) = receive_local_request(&mut socket).await;
             let remote_answer = if filter_query(&filter, &query) {
                 println!("This was filtered!");
                 generate_deny_response(&query)
             } else {
-                query_remote_dns_server(local_address, query).await
+                // query_remote_dns_server_udp(local_address, DEFAULT_DNS_RESOLVER, query).await
+                query_remote_dns_server_doh(DEFAULT_DOH_DNS_RESOLVER, query).await.expect("couldn't parse doh answer")
             };
 
             let answer_rrs = remote_answer.resource_records().expect("couldn't parse RRs");
@@ -44,31 +46,6 @@ async fn main() {
                 .expect("failed to send to local socket");
         }
     }).await.unwrap();
-}
-
-async fn receive_local(local_socket: &mut UdpSocket) -> (Message, std::net::SocketAddr) {
-    // Receives a single datagram message on the socket. If `buf` is too small to hold
-    // the message, it will be cut off.
-    // TODO: Detect overflow. Longer messages are truncated and the TC bit is set in the header.
-    let (buf, src) = recv_datagram(local_socket).await
-        .expect("couldn't receive datagram");
-    println!("Q buffer: {:?}", buf);
-    let message = parse_message(buf);
-    let question = message.question().expect("couldn't parse question");
-    println!("Q name: {:?} {:?}", question.qname().join("."), question.get_type());
-
-    (message, src)
-}
-
-async fn query_remote_dns_server(local_address: Ipv4Addr, query: Message) -> Message {
-    let mut remote_socket = UdpSocket::bind((local_address, 0)).await
-        .expect("couldn't bind remote resolver to address");
-    query.send_to(&mut remote_socket, DEFAULT_DNS_RESOLVER).await
-        .expect("couldn't send data to remote");
-    let (remote_buf, _) = recv_datagram(&mut remote_socket).await
-        .expect("couldn't receive datagram from remote");
-    println!("A buffer: {:?}", remote_buf);
-    parse_message(remote_buf)
 }
 
 fn filter_query(filter: &Filter, query: &Message) -> bool {
