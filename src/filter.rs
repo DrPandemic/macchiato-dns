@@ -1,27 +1,27 @@
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufRead};
+use cuckoofilter::*;
 
-#[derive(Copy, Clone, Debug)]
 pub enum BlockFileVersion {
     None,
     Blugo,
     Ultimate,
 }
 
-#[derive(Copy, Clone, Debug)]
 pub enum FilterFormat {
     Vector,
     Hash,
     Bloom,
     Xor,
+    Cuckoo,
 }
 
-#[derive(Clone, Debug)]
 pub struct Filter {
     pub format: FilterFormat,
-    pub domains_vector: Option<Vec<String>>,
-    pub domains_hash: Option<HashMap<String, u8>>
+    pub vector: Option<Vec<String>>,
+    pub hash: Option<HashSet<String>>,
+    pub cuckoo: Option<CuckooFilter<std::collections::hash_map::DefaultHasher>>,
 }
 
 impl Filter {
@@ -37,7 +37,7 @@ impl Filter {
         match version {
             BlockFileVersion::Blugo => Some(String::from("blugo.txt")),
             BlockFileVersion::Ultimate => Some(String::from("ultimate.txt")),
-            BlockFileVersion::None => None
+            BlockFileVersion::None => None,
         }
     }
 
@@ -45,15 +45,16 @@ impl Filter {
     pub fn from_download(_version: BlockFileVersion, _format: FilterFormat) -> Filter {
         Filter {
             format: FilterFormat::Vector,
-            domains_vector: Some(vec![]),
-            domains_hash: None,
+            vector: Some(vec![]),
+            hash: None,
+            cuckoo: None,
         }
     }
 
     pub fn from_disk(version: BlockFileVersion, format: FilterFormat) -> Result<Filter, std::io::Error> {
         let lines = if let Some(file_name) = Filter::get_file_name(version) {
             let file = File::open(file_name)?;
-            io::BufReader::new(file)
+            let mut vec = io::BufReader::new(file)
                 .lines()
                 .filter_map(|maybe_line| {
                     match maybe_line {
@@ -61,7 +62,9 @@ impl Filter {
                         _ => None
                     }
                 })
-                .collect::<Vec<String>>()
+                .collect::<Vec<String>>();
+            vec.sort();
+            vec
         } else {
             vec![]
         };
@@ -69,30 +72,50 @@ impl Filter {
         match format {
             FilterFormat::Vector => {
                 Ok(Filter {
-                    format: FilterFormat::Vector,
-                    domains_vector: Some(lines),
-                    domains_hash: None,
+                    format: format,
+                    vector: Some(lines),
+                    hash: None,
+                    cuckoo: None,
                 })
             },
             FilterFormat::Hash => {
-                let mut hash = HashMap::new();
+                let mut hash = HashSet::new();
                 for line in lines {
-                    hash.insert(line, 0);
+                    hash.insert(line);
                 }
                 Ok(Filter {
-                    format: FilterFormat::Hash,
-                    domains_vector: None,
-                    domains_hash: Some(hash),
+                    format: format,
+                    vector: None,
+                    hash: Some(hash),
+                    cuckoo: None,
                 })
             },
+            FilterFormat::Cuckoo => {
+                let mut filter = CuckooFilter::new();
+                for line in lines.clone() {
+                    filter.add(&line);
+                }
+                Ok(Filter {
+                    format: format,
+                    vector: Some(lines),
+                    hash: None,
+                    cuckoo: Some(filter),
+                })
+            }
             _ => panic!()
         }
     }
 
     pub fn is_filtered(&self, name: String) -> bool {
         match self.format {
-            FilterFormat::Vector => self.domains_vector.as_ref().unwrap().iter().any(|line| line == &name),
-            FilterFormat::Hash => self.domains_hash.as_ref().unwrap().contains_key(&name),
+            FilterFormat::Vector => self.vector.as_ref().unwrap().binary_search(&name).is_ok(),
+            FilterFormat::Hash => self.hash.as_ref().unwrap().contains(&name),
+            FilterFormat::Cuckoo => {
+                !(
+                    !self.cuckoo.as_ref().unwrap().contains(&name) &&
+                        !self.vector.as_ref().unwrap().binary_search(&name).is_ok()
+                )
+            },
             _ => false,
         }
     }

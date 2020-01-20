@@ -7,44 +7,32 @@ use dns::filter::*;
 
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let filter_vector = Filter::from_disk(BlockFileVersion::Ultimate, FilterFormat::Vector).expect("Couldn't load filter");
-    let filter_hash = Filter::from_disk(BlockFileVersion::Ultimate, FilterFormat::Hash).expect("Couldn't load filter");
-
     let mut group = c.benchmark_group("filter");
-    group.measurement_time(Duration::new(17, 0));
+    group.measurement_time(Duration::new(5, 0));
 
-    group.bench_function("not in vector", |b| {
-        b.iter(|| {
-            filter_vector.is_filtered(black_box(String::from("notblacklisted.com")))
-        })
-    });
-    group.bench_function("beginning of vector", |b| {
-        b.iter(|| {
-            filter_vector.is_filtered(black_box(String::from("0.015.openvpn.btcchina.com")))
-        })
-    });
-    group.bench_function("end of vector", |b| {
-        b.iter(|| {
-            filter_vector.is_filtered(black_box(String::from("zzzzzz.com")))
-        })
-    });
-    group.bench_function("not in hash", |b| {
-        b.iter(|| {
-            filter_hash.is_filtered(black_box(String::from("notblacklisted.com")))
-        })
-    });
-    group.bench_function("beginning of hash", |b| {
-        b.iter(|| {
-            filter_hash.is_filtered(black_box(String::from("0.015.openvpn.btcchina.com")))
-        })
-    });
-    group.bench_function("end of hash", |b| {
-        b.iter(|| {
-            filter_hash.is_filtered(black_box(String::from("zzzzzz.com")))
-        })
-    });
-
+    bench(&mut group, FilterFormat::Vector, "vector");
+    bench(&mut group, FilterFormat::Hash, "hash");
+    bench(&mut group, FilterFormat::Cuckoo, "cuckoo");
     group.finish();
+}
+
+fn bench(group: &mut criterion::BenchmarkGroup<'_, criterion::measurement::WallTime> , format: FilterFormat, name: &str) {
+    let filter = Filter::from_disk(BlockFileVersion::Ultimate, format).expect("Couldn't load filter");
+    group.bench_function(format!("not in {}", name), |b| {
+        b.iter(|| {
+            filter.is_filtered(black_box(String::from("notblacklisted.com")))
+        })
+    });
+    group.bench_function(format!("beginning of {}", name), |b| {
+        b.iter(|| {
+            filter.is_filtered(black_box(String::from("0.015.openvpn.btcchina.com")))
+        })
+    });
+    group.bench_function(format!("end of {}", name), |b| {
+        b.iter(|| {
+            filter.is_filtered(black_box(String::from("zzzzzz.com")))
+        })
+    });
 }
 
 criterion_group!(benches, criterion_benchmark);
