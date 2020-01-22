@@ -1,5 +1,6 @@
 use std::io;
-use tokio::net::{UdpSocket, ToSocketAddrs};
+use std::net::SocketAddr;
+use tokio::net::udp::SendHalf;
 
 use crate::helpers::*;
 use crate::question::*;
@@ -209,7 +210,7 @@ impl Message {
         self.buffer.extend_from_slice(&last);
     }
 
-    pub async fn send_to<A: ToSocketAddrs>(&self, socket: &mut UdpSocket, target: A) -> io::Result<usize> {
+    pub async fn send_to(&self, socket: &mut SendHalf, target: &SocketAddr) -> io::Result<usize> {
         socket.send_to(&self.buffer, target).await
     }
 }
