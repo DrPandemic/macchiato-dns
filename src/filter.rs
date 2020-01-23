@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use cuckoofilter::*;
 
-pub enum BlockFileVersion {
+pub enum FilterVersion {
     None,
     Blugo,
     Ultimate,
@@ -25,24 +25,24 @@ pub struct Filter {
 }
 
 impl Filter {
-    // fn get_url(version: BlockFileVersion) -> Option<String> {
+    // fn get_url(version: FilterVersion) -> Option<String> {
     //     match version {
-    //         BlockFileVersion::Blugo => Some(String::from("https://block.energized.pro/bluGo/formats/domains.txt")),
-    //         BlockFileVersion::Ultimate => Some(String::from("https://block.energized.pro/ultimate/formats/domains.txt")),
-    //         BlockFileVersion::None => None
+    //         FilterVersion::Blugo => Some(String::from("https://block.energized.pro/bluGo/formats/domains.txt")),
+    //         FilterVersion::Ultimate => Some(String::from("https://block.energized.pro/ultimate/formats/domains.txt")),
+    //         FilterVersion::None => None
     //     }
     // }
 
-    fn get_file_name(version: BlockFileVersion) -> Option<String> {
+    fn get_file_name(version: FilterVersion) -> Option<String> {
         match version {
-            BlockFileVersion::Blugo => Some(String::from("blugo.txt")),
-            BlockFileVersion::Ultimate => Some(String::from("ultimate.txt")),
-            BlockFileVersion::None => None,
+            FilterVersion::Blugo => Some(String::from("blugo.txt")),
+            FilterVersion::Ultimate => Some(String::from("ultimate.txt")),
+            FilterVersion::None => None,
         }
     }
 
 
-    pub fn from_download(_version: BlockFileVersion, _format: FilterFormat) -> Filter {
+    pub fn from_download(_version: FilterVersion, _format: FilterFormat) -> Filter {
         Filter {
             format: FilterFormat::Vector,
             vector: Some(vec![]),
@@ -51,7 +51,7 @@ impl Filter {
         }
     }
 
-    pub fn from_disk(version: BlockFileVersion, format: FilterFormat) -> Result<Filter, std::io::Error> {
+    pub fn from_disk(version: FilterVersion, format: FilterFormat) -> Result<Filter, std::io::Error> {
         let lines = if let Some(file_name) = Filter::get_file_name(version) {
             let file = File::open(file_name)?;
             let mut vec = io::BufReader::new(file)
