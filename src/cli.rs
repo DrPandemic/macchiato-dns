@@ -16,7 +16,7 @@ pub struct Opt {
     #[structopt(short, long)]
     pub small: bool,
 
-    /// none, blugo or ultimate. Defaults to blugo
-    #[structopt(short = "f", long, default_value = "blugo")]
+    /// none, blu or ultimate. Defaults to blu
+    #[structopt(short = "f", long, default_value = "blu")]
     pub filter_list: String,
 }

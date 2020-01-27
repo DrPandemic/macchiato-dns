@@ -1,34 +1,32 @@
 use tokio::net::udp::RecvHalf;
 use tokio::net::UdpSocket;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::error::Error;
 use crate::message::*;
 
 const MAX_DATAGRAM_SIZE: usize = 512;
 
-pub async fn recv_datagram(socket: &mut RecvHalf) -> Option<(Vec<u8>, std::net::SocketAddr)> {
+pub async fn recv_datagram(socket: &mut RecvHalf) -> Result<(Vec<u8>, std::net::SocketAddr), Box<dyn Error>> {
     let mut buf = [0; MAX_DATAGRAM_SIZE];
-    let (amt, src) = match socket.recv_from(&mut buf).await {
-        Ok(result) => result,
-        Err(e) => {
-            eprintln!("failed to read from local socket; err = {:?}", e);
-            return None;
-        }
-    };
-    Some((buf[..amt].to_vec(), src))
+    let (amt, src) = socket.recv_from(&mut buf).await?;
+    Ok((buf[..amt].to_vec(), src))
 }
 
-pub async fn receive_local_request(local_socket: &mut RecvHalf) -> (Message, std::net::SocketAddr) {
+pub async fn receive_local_request(local_socket: &mut RecvHalf, verbose: u8) ->
+    Result<(Message, std::net::SocketAddr), Box<dyn Error>>
+{
     // Receives a single datagram message on the socket. If `buf` is too small to hold
     // the message, it will be cut off.
     // TODO: Detect overflow. Longer messages are truncated and the TC bit is set in the header.
-    let (buf, src) = recv_datagram(local_socket).await
-        .expect("couldn't receive datagram");
-    // println!("Q buffer: {:?}", buf);
+    let (buf, src) = recv_datagram(local_socket).await?;
+    if verbose > 2{
+        println!("Q buffer: {:?}", buf);
+    }
     let message = parse_message(buf);
     // let question = message.question().expect("couldn't parse question");
     // println!("Q name: {:?} {:?}", question.qname().join("."), question.get_type());
 
-    (message, src)
+    Ok((message, src))
 }
 
 pub fn find_private_ipv4_address() -> Option<Ipv4Addr> {

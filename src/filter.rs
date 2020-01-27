@@ -5,7 +5,7 @@ use cuckoofilter::*;
 
 pub enum FilterVersion {
     None,
-    Blugo,
+    Blu,
     Ultimate,
 }
 
@@ -35,7 +35,7 @@ impl Filter {
 
     fn get_file_name(version: FilterVersion) -> Option<String> {
         match version {
-            FilterVersion::Blugo => Some(String::from("blugo.txt")),
+            FilterVersion::Blu => Some(String::from("blu.txt")),
             FilterVersion::Ultimate => Some(String::from("ultimate.txt")),
             FilterVersion::None => None,
         }

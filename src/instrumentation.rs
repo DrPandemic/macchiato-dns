@@ -30,10 +30,11 @@ impl Instrumentation {
             Duration::new(0, 0)
         };
 
+        let total = SystemTime::now().duration_since(self.initial).unwrap_or(Duration::new(0, 0));
         println!(
-            "Took {:?} with {:?} waiting for remote server",
-            SystemTime::now().duration_since(self.initial).unwrap_or(Duration::new(0, 0)),
-            remote_timing,
+            "{:?} in this server with a total of {:?}",
+            total - remote_timing,
+            total,
         );
     }
 }
