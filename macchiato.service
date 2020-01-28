@@ -1,0 +1,12 @@
+[Unit]
+Description=Macchiato DNS Proxy Server
+Before=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/macchiato-dns -s --filters-path /var/lib/macchiato-dns
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

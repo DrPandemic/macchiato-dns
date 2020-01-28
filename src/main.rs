@@ -7,6 +7,7 @@ use std::str;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel};
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use tokio::net::UdpSocket;
 use structopt::StructOpt;
 
@@ -32,7 +33,7 @@ const DEFAULT_INTERNAL_ADDRESS_DEBUG: &str = "127.0.0.1:5553";
 #[tokio::main]
 async fn main() {
     let opt = Opt::from_args();
-    let verbose = opt.verbose;
+    let verbosity = opt.verbosity;
     let filter_version = match &opt.filter_list[..] {
         "none" => FilterVersion::None,
         "blu" => FilterVersion::Blu,
@@ -44,7 +45,9 @@ async fn main() {
     } else {
         FilterFormat::Hash
     };
-    let filter = Arc::new(Mutex::new(Filter::from_disk(filter_version, filter_format).expect("Couldn't load filter")));
+    let filters_path = opt.filters_path.unwrap_or(PathBuf::from("./"));
+
+    let filter = Arc::new(Mutex::new(Filter::from_disk(filter_version, filter_format, filters_path).expect("Couldn't load filter")));
     let socket = UdpSocket::bind(if opt.debug { DEFAULT_INTERNAL_ADDRESS_DEBUG } else { DEFAULT_INTERNAL_ADDRESS }).await
         .expect("tried to bind an UDP port");
     let (mut receiving, mut sending) = socket.split();
@@ -57,10 +60,10 @@ async fn main() {
             if let Ok((src, instrumentation, message)) = result {
                 let sent = message.send_to(&mut sending, &src).await;
                 if sent.is_err() {
-                    log_error("Failed to send back UDP packet", verbose);
+                    log_error("Failed to send back UDP packet", verbosity);
                     continue
                 }
-                if verbose > 1 {
+                if verbosity > 2 {
                     instrumentation.display();
                 }
             }
@@ -68,7 +71,7 @@ async fn main() {
     });
 
     loop {
-        let local_result = receive_local_request(&mut receiving, verbose).await;
+        let local_result = receive_local_request(&mut receiving, verbosity).await;
         let (query, src) = match local_result {
             Ok(result) => result,
             _ => continue,
@@ -77,8 +80,7 @@ async fn main() {
         let filter = Arc::clone(&filter);
         let response_sender = response_sender.clone();
         tokio::spawn(async move {
-            let remote_answer = if filter_query(filter, &query, verbose) {
-                println!("This was filtered!");
+            let remote_answer = if filter_query(filter, &query, verbosity) {
                 generate_deny_response(&query)
             } else {
                 // query_remote_dns_server_udp(local_address, DEFAULT_DNS_RESOLVER, query).await
@@ -87,7 +89,7 @@ async fn main() {
                     instrumentation.set_request_received();
                     result
                 } else {
-                    return log_error("Failed to send DoH", verbose);
+                    return log_error("Failed to send DoH", verbosity);
                 }
             };
 
@@ -95,28 +97,35 @@ async fn main() {
 
             // println!("A data: {:?}", answer_rrs.0.into_iter().map(|rr| rr.name.join(".")).collect::<Vec<String>>());
             if response_sender.send((src, instrumentation, remote_answer)).is_err() {
-                log_error("Failed to send a message on channel", verbose);
+                log_error("Failed to send a message on channel", verbosity);
             }
         }).await.unwrap();
     }
 }
 
-fn filter_query(filter: Arc<Mutex<Filter>>, query: &Message, verbose: u8) -> bool {
+fn filter_query(filter: Arc<Mutex<Filter>>, query: &Message, verbosity: u8) -> bool {
     if let Some(question) = query.question() {
         let name = question.qname().join(".");
-        if verbose > 0 {
+        if verbosity > 1 {
             println!("{}", name);
         }
         let filter = filter.lock().unwrap();
-        filter.is_filtered(name)
+        if filter.is_filtered(&name) {
+            if verbosity > 0 {
+                println!("{:?} was filtered!", name);
+            }
+            true
+        } else {
+            false
+        }
     } else {
-        log_error("couldn't parse question", verbose);
+        log_error("couldn't parse question", verbosity);
         false
     }
 }
 
-fn log_error(message: &str, verbose: u8) {
-    if verbose > 1 {
+fn log_error(message: &str, verbosity: u8) {
+    if verbosity > 2 {
         println!("{:?}", message);
     }
 }

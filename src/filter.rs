@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufRead};
+use std::path::PathBuf;
 use cuckoofilter::*;
 
 pub enum FilterVersion {
@@ -51,9 +52,9 @@ impl Filter {
         }
     }
 
-    pub fn from_disk(version: FilterVersion, format: FilterFormat) -> Result<Filter, std::io::Error> {
+    pub fn from_disk(version: FilterVersion, format: FilterFormat, path: PathBuf) -> Result<Filter, std::io::Error> {
         let lines = if let Some(file_name) = Filter::get_file_name(version) {
-            let file = File::open(file_name)?;
+            let file = File::open(path.join(file_name))?;
             let mut vec = io::BufReader::new(file)
                 .lines()
                 .filter_map(|maybe_line| {
@@ -106,14 +107,14 @@ impl Filter {
         }
     }
 
-    pub fn is_filtered(&self, name: String) -> bool {
+    pub fn is_filtered(&self, name: &String) -> bool {
         match self.format {
-            FilterFormat::Vector => self.vector.as_ref().unwrap().binary_search(&name).is_ok(),
-            FilterFormat::Hash => self.hash.as_ref().unwrap().contains(&name),
+            FilterFormat::Vector => self.vector.as_ref().unwrap().binary_search(name).is_ok(),
+            FilterFormat::Hash => self.hash.as_ref().unwrap().contains(name),
             FilterFormat::Cuckoo => {
                 !(
-                    !self.cuckoo.as_ref().unwrap().contains(&name) &&
-                        !self.vector.as_ref().unwrap().binary_search(&name).is_ok()
+                    !self.cuckoo.as_ref().unwrap().contains(name) &&
+                        !self.vector.as_ref().unwrap().binary_search(name).is_ok()
                 )
             },
             _ => false,
