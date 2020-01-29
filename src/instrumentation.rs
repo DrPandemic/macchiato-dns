@@ -24,13 +24,15 @@ impl Instrumentation {
     }
 
     pub fn display(&self) {
-        let remote_timing = if let(Some(a), Some(b)) = (self.request_sent, self.request_received) {
+        let remote_timing = if let (Some(a), Some(b)) = (self.request_sent, self.request_received) {
             b.duration_since(a).unwrap_or(Duration::new(0, 0))
         } else {
             Duration::new(0, 0)
         };
 
-        let total = SystemTime::now().duration_since(self.initial).unwrap_or(Duration::new(0, 0));
+        let total = SystemTime::now()
+            .duration_since(self.initial)
+            .unwrap_or(Duration::new(0, 0));
         println!(
             "{:?} in this server with a total of {:?}",
             total - remote_timing,

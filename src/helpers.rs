@@ -55,7 +55,9 @@ pub fn parse_name(buffer: &[u8], offset: usize) -> (Vec<String>, usize) {
 pub fn encode_name(name: Vec<String>) -> Vec<u8> {
     let mut buffer = name.into_iter().fold(vec![], |mut acc, part| {
         acc.push(part.len() as u8);
-        part.into_bytes().into_iter().for_each(|byte| acc.push(byte));
+        part.into_bytes()
+            .into_iter()
+            .for_each(|byte| acc.push(byte));
         acc
     });
 
@@ -63,7 +65,6 @@ pub fn encode_name(name: Vec<String>) -> Vec<u8> {
 
     buffer
 }
-
 
 pub fn parse_type_code(code: u16) -> ResourceRecordType {
     match code {

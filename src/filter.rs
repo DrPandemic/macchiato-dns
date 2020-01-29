@@ -1,8 +1,8 @@
+use cuckoofilter::*;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::PathBuf;
-use cuckoofilter::*;
 
 pub enum FilterVersion {
     None,
@@ -42,7 +42,6 @@ impl Filter {
         }
     }
 
-
     pub fn from_download(_version: FilterVersion, _format: FilterFormat) -> Filter {
         Filter {
             format: FilterFormat::Vector,
@@ -52,16 +51,24 @@ impl Filter {
         }
     }
 
-    pub fn from_disk(version: FilterVersion, format: FilterFormat, path: PathBuf) -> Result<Filter, std::io::Error> {
+    pub fn from_disk(
+        version: FilterVersion,
+        format: FilterFormat,
+        path: PathBuf,
+    ) -> Result<Filter, std::io::Error> {
         let lines = if let Some(file_name) = Filter::get_file_name(version) {
             let file = File::open(path.join(file_name))?;
             let mut vec = io::BufReader::new(file)
                 .lines()
-                .filter_map(|maybe_line| {
-                    match maybe_line {
-                        Ok(line) => if line.starts_with("#") { None } else { Some(line) }
-                        _ => None
+                .filter_map(|maybe_line| match maybe_line {
+                    Ok(line) => {
+                        if line.starts_with("#") {
+                            None
+                        } else {
+                            Some(line)
+                        }
                     }
+                    _ => None,
                 })
                 .collect::<Vec<String>>();
             vec.sort();
@@ -71,14 +78,12 @@ impl Filter {
         };
 
         match format {
-            FilterFormat::Vector => {
-                Ok(Filter {
-                    format: format,
-                    vector: Some(lines),
-                    hash: None,
-                    cuckoo: None,
-                })
-            },
+            FilterFormat::Vector => Ok(Filter {
+                format: format,
+                vector: Some(lines),
+                hash: None,
+                cuckoo: None,
+            }),
             FilterFormat::Hash => {
                 let mut hash = HashSet::new();
                 for line in lines {
@@ -90,7 +95,7 @@ impl Filter {
                     hash: Some(hash),
                     cuckoo: None,
                 })
-            },
+            }
             FilterFormat::Cuckoo => {
                 let mut filter = CuckooFilter::new();
                 for line in lines.clone() {
@@ -103,7 +108,7 @@ impl Filter {
                     cuckoo: Some(filter),
                 })
             }
-            _ => panic!()
+            _ => panic!(),
         }
     }
 
@@ -112,11 +117,9 @@ impl Filter {
             FilterFormat::Vector => self.vector.as_ref().unwrap().binary_search(name).is_ok(),
             FilterFormat::Hash => self.hash.as_ref().unwrap().contains(name),
             FilterFormat::Cuckoo => {
-                !(
-                    !self.cuckoo.as_ref().unwrap().contains(name) &&
-                        !self.vector.as_ref().unwrap().binary_search(name).is_ok()
-                )
-            },
+                !(!self.cuckoo.as_ref().unwrap().contains(name)
+                    && !self.vector.as_ref().unwrap().binary_search(name).is_ok())
+            }
             _ => false,
         }
     }
