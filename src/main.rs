@@ -1,5 +1,10 @@
+use crate::instrumentation::*;
+use crate::network::*;
 use actix::prelude::*;
+use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
+use tokio::net::udp::RecvHalf;
+use tokio::net::UdpSocket;
 
 pub mod cli;
 pub mod dns_message;
@@ -10,33 +15,52 @@ pub mod instrumentation;
 pub mod network;
 pub mod question;
 pub mod resource_record;
+pub mod response_actor;
 use crate::cli::*;
-use crate::dns_message::*;
 use crate::filter_actor::*;
-// use crate::instrumentation::*;
-// use crate::network::*;
+use crate::response_actor::*;
 
-const IMATEAPOT_QUESTION: [u8; 46] = [
-    57, 32, 1, 32, 0, 1, 0, 0, 0, 0, 0, 1, 3, 119, 119, 119, 9, 105, 109, 97, 116, 101, 97, 112,
-    111, 116, 3, 111, 114, 103, 0, 0, 1, 0, 1, 0, 0, 41, 16, 0, 0, 0, 0, 0, 0, 0,
-];
+const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:53";
+const DEFAULT_INTERNAL_ADDRESS_DEBUG: &str = "127.0.0.1:5553";
 
 fn main() -> std::io::Result<()> {
     let opt = Opt::from_args();
     let system = System::new("macchiato");
 
-    let addr = FilterActor::from_registry();
-    let buffer = IMATEAPOT_QUESTION.to_vec();
-    let message = parse_message(buffer);
+    let address = if opt.debug {
+        DEFAULT_INTERNAL_ADDRESS_DEBUG
+    } else {
+        DEFAULT_INTERNAL_ADDRESS
+    };
 
     Arbiter::spawn(async move {
-        addr.send(ChangeFilter(opt.clone()))
+        let socket = UdpSocket::bind(address)
             .await
-            .expect("Failed to change filter");
-        println!("Changed");
-        let result = addr.send(IsFiltered(message)).await;
-        println!("{:?}", result);
+            .expect("tried to bind an UDP port");
+
+        let (receiving, sending) = socket.split();
+
+        let response_actor = ResponseActor {
+            verbosity: opt.verbosity,
+            socket: Arc::new(Mutex::new(sending)),
+        }
+        .start();
+
+        let filter_actor = FilterActor::new(&opt, response_actor).start();
+        listen(receiving, opt.verbosity, filter_actor).await;
     });
 
     system.run()
+}
+
+async fn listen(mut socket: RecvHalf, verbosity: u8, filter_actor: Addr<FilterActor>) {
+    loop {
+        let local_result = receive_local_request(&mut socket, verbosity).await;
+        let (query, src) = match local_result {
+            Ok(result) => result,
+            _ => continue,
+        };
+
+        filter_actor.do_send(DnsQueryReceived(query, src, Instrumentation::new()));
+    }
 }

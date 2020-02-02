@@ -6,6 +6,7 @@ use crate::helpers::*;
 use crate::question::*;
 use crate::resource_record::*;
 
+#[derive(Debug)]
 pub struct DnsMessage {
     pub buffer: Vec<u8>,
 }

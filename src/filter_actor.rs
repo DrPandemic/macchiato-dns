@@ -1,18 +1,41 @@
 use crate::cli::*;
 use crate::dns_message::*;
 use crate::filter::*;
+use crate::instrumentation::*;
+use crate::response_actor::*;
 use actix::prelude::*;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 
-#[derive(Default)]
 pub struct FilterActor {
     pub filter: Filter,
-    verbosity: u8,
+    pub verbosity: u8,
+    pub response_actor: Addr<ResponseActor>,
 }
-impl actix::Supervised for FilterActor {}
 
-impl ArbiterService for FilterActor {
-    fn service_started(&mut self, _ctx: &mut Context<Self>) {}
+impl FilterActor {
+    pub fn new(opt: &Opt, response_actor: Addr<ResponseActor>) -> FilterActor {
+        let filter_version = match &opt.filter_list[..] {
+            "none" => FilterVersion::None,
+            "blu" => FilterVersion::Blu,
+            "ultimate" => FilterVersion::Ultimate,
+            _ => panic!("Filter list is not valid"),
+        };
+        let filter_format = if opt.small {
+            FilterFormat::Vector
+        } else {
+            FilterFormat::Hash
+        };
+        let filters_path = opt.filters_path.clone().unwrap_or(PathBuf::from("./"));
+        let filter = Filter::from_disk(filter_version, filter_format, filters_path)
+            .expect("Failed to load filter from disk");
+        let verbosity = opt.verbosity;
+        FilterActor {
+            filter: filter,
+            verbosity: verbosity,
+            response_actor: response_actor,
+        }
+    }
 }
 
 impl Actor for FilterActor {
@@ -21,43 +44,16 @@ impl Actor for FilterActor {
     fn started(&mut self, _ctx: &mut Context<Self>) {}
 }
 
-pub struct IsFiltered(pub DnsMessage);
-pub struct ChangeFilter(pub Opt);
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct DnsQueryReceived(pub DnsMessage, pub SocketAddr, pub Instrumentation);
 
-impl Message for IsFiltered {
-    type Result = bool;
-}
-
-impl Message for ChangeFilter {
-    type Result = ();
-}
-
-impl Handler<ChangeFilter> for FilterActor {
+impl Handler<DnsQueryReceived> for FilterActor {
     type Result = ();
 
-    fn handle(&mut self, opt: ChangeFilter, _ctx: &mut Context<Self>) -> Self::Result {
-        let filter_version = match &opt.0.filter_list[..] {
-            "none" => FilterVersion::None,
-            "blu" => FilterVersion::Blu,
-            "ultimate" => FilterVersion::Ultimate,
-            _ => panic!("Filter list is not valid"),
-        };
-        let filter_format = if opt.0.small {
-            FilterFormat::Vector
-        } else {
-            FilterFormat::Hash
-        };
-        let filters_path = opt.0.filters_path.clone().unwrap_or(PathBuf::from("./"));
-        self.filter = Filter::from_disk(filter_version, filter_format, filters_path)
-            .expect("Failed to load filter from disk");
-        self.verbosity = opt.0.verbosity;
-    }
-}
-impl Handler<IsFiltered> for FilterActor {
-    type Result = bool;
-
-    fn handle(&mut self, query: IsFiltered, _ctx: &mut Context<Self>) -> Self::Result {
-        if let Some(question) = query.0.question() {
+    fn handle(&mut self, message: DnsQueryReceived, _ctx: &mut Context<Self>) -> Self::Result {
+        if let Some(question) = message.0.question() {
+            println!("foo");
             let name = question.qname().join(".");
             if self.verbosity > 1 {
                 println!("{}", name);
@@ -66,14 +62,17 @@ impl Handler<IsFiltered> for FilterActor {
                 if self.verbosity > 0 {
                     println!("{:?} was filtered!", name);
                 }
-                true
+                println!("asd");
+                self.response_actor.do_send(SendBackDnsResponse(
+                    generate_deny_response(&message.0),
+                    message.1,
+                    message.2,
+                ));
             } else {
-                false
             }
         } else {
             log_error("couldn't parse question", self.verbosity);
-            false
-        }
+        };
     }
 }
 

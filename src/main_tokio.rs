@@ -21,8 +21,9 @@ pub mod resource_record;
 use crate::cli::*;
 use crate::dns_message::*;
 use crate::filter::*;
+use crate::helpers::*;
+use crate::helpers::*;
 use crate::instrumentation::*;
-use crate::network::*;
 
 // const DEFAULT_DNS_RESOLVER: &str = "8.8.8.8:53";
 const DEFAULT_DOH_DNS_RESOLVER: &str = "https://1.1.1.1/dns-query";
@@ -139,11 +140,5 @@ fn filter_query(filter: Arc<Mutex<Filter>>, query: &DnsMessage, verbosity: u8) -
     } else {
         log_error("couldn't parse question", verbosity);
         false
-    }
-}
-
-fn log_error(message: &str, verbosity: u8) {
-    if verbosity > 2 {
-        println!("{:?}", message);
     }
 }
