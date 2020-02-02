@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 
 /// A basic example
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt, Debug, Clone)]
 #[structopt(name = "basic")]
 pub struct Opt {
     /// Activate debug mode. Runs server on 5553
@@ -24,4 +24,16 @@ pub struct Opt {
     /// Directory containing filter lists
     #[structopt(long, parse(from_os_str))]
     pub filters_path: Option<PathBuf>,
+}
+
+impl Default for Opt {
+    fn default() -> Self {
+        Opt {
+            debug: false,
+            verbosity: 0,
+            small: false,
+            filter_list: String::from("none"),
+            filters_path: None,
+        }
+    }
 }
