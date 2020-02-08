@@ -82,3 +82,9 @@ pub enum ResourceRecordType {
     Opt,
     Other,
 }
+
+pub fn log_error(message: &str, verbosity: u8) {
+    if verbosity > 2 {
+        println!("{:?}", message);
+    }
+}

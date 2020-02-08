@@ -1,3 +1,4 @@
+use crate::cli::*;
 use cuckoofilter::*;
 use std::collections::HashSet;
 use std::fs::File;
@@ -33,6 +34,24 @@ impl Filter {
     //         FilterVersion::None => None
     //     }
     // }
+
+    pub fn from_opt(opt: &Opt) -> Filter {
+        let filter_version = match &opt.filter_list[..] {
+            "none" => FilterVersion::None,
+            "blu" => FilterVersion::Blu,
+            "ultimate" => FilterVersion::Ultimate,
+            _ => panic!("Filter list is not valid"),
+        };
+        let filter_format = if opt.small {
+            FilterFormat::Vector
+        } else {
+            FilterFormat::Hash
+        };
+        let filters_path = opt.filters_path.clone().unwrap_or(PathBuf::from("./"));
+
+        Filter::from_disk(filter_version, filter_format, filters_path)
+            .expect("Couldn't load filter")
+    }
 
     fn get_file_name(version: FilterVersion) -> Option<String> {
         match version {
