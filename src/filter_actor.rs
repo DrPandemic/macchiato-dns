@@ -2,6 +2,7 @@ use crate::cli::*;
 use crate::dns_message::*;
 use crate::filter::*;
 use crate::instrumentation::*;
+use crate::remote_dns_actor::*;
 use crate::response_actor::*;
 use actix::prelude::*;
 use std::net::SocketAddr;
@@ -11,10 +12,15 @@ pub struct FilterActor {
     pub filter: Filter,
     pub verbosity: u8,
     pub response_actor: Addr<ResponseActor>,
+    pub remote_dns_actor: Addr<RemoteDnsActor>,
 }
 
 impl FilterActor {
-    pub fn new(opt: &Opt, response_actor: Addr<ResponseActor>) -> FilterActor {
+    pub fn new(
+        opt: &Opt,
+        response_actor: Addr<ResponseActor>,
+        remote_dns_actor: Addr<RemoteDnsActor>,
+    ) -> FilterActor {
         let filter_version = match &opt.filter_list[..] {
             "none" => FilterVersion::None,
             "blu" => FilterVersion::Blu,
@@ -34,6 +40,7 @@ impl FilterActor {
             filter: filter,
             verbosity: verbosity,
             response_actor: response_actor,
+            remote_dns_actor: remote_dns_actor,
         }
     }
 }
@@ -53,7 +60,6 @@ impl Handler<DnsQueryReceived> for FilterActor {
 
     fn handle(&mut self, message: DnsQueryReceived, _ctx: &mut Context<Self>) -> Self::Result {
         if let Some(question) = message.0.question() {
-            println!("foo");
             let name = question.qname().join(".");
             if self.verbosity > 1 {
                 println!("{}", name);
@@ -62,13 +68,14 @@ impl Handler<DnsQueryReceived> for FilterActor {
                 if self.verbosity > 0 {
                     println!("{:?} was filtered!", name);
                 }
-                println!("asd");
                 self.response_actor.do_send(SendBackDnsResponse(
                     generate_deny_response(&message.0),
                     message.1,
                     message.2,
                 ));
             } else {
+                self.remote_dns_actor
+                    .do_send(SendRemoteDnsQuery(message.0, message.1, message.2))
             }
         } else {
             log_error("couldn't parse question", self.verbosity);

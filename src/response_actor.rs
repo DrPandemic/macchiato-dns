@@ -1,17 +1,24 @@
+use crate::cli::*;
 use crate::dns_message::*;
 use crate::helpers::*;
 use crate::instrumentation::*;
-use crate::network::*;
 use actix::prelude::*;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use tokio::net::udp::SendHalf;
 
-const DEFAULT_DOH_DNS_RESOLVER: &str = "https://1.1.1.1/dns-query";
-
 pub struct ResponseActor {
     pub socket: Arc<Mutex<SendHalf>>,
     pub verbosity: u8,
+}
+
+impl ResponseActor {
+    pub fn new(socket: SendHalf, opt: &Opt) -> ResponseActor {
+        ResponseActor {
+            verbosity: opt.verbosity,
+            socket: Arc::new(Mutex::new(socket)),
+        }
+    }
 }
 
 impl Actor for ResponseActor {
@@ -28,16 +35,15 @@ impl Handler<SendBackDnsResponse> for ResponseActor {
     type Result = ();
 
     fn handle(&mut self, message: SendBackDnsResponse, _ctx: &mut Context<Self>) -> Self::Result {
-        let SendBackDnsResponse(dns_message, addr, instrumentation);
         let verbosity = self.verbosity;
         let socket = Arc::clone(&self.socket);
-        println!("a");
 
-        actix_rt::spawn(async move {
-            println!("b");
-            let mut socket = socket.lock().unwrap();
+        Arbiter::spawn(async move {
             let SendBackDnsResponse(dns_message, addr, instrumentation) = message;
-            let sent = dns_message.send_to(&mut socket, &addr).await;
+            let sent = {
+                let mut socket = socket.lock().unwrap();
+                dns_message.send_to(&mut socket, &addr).await
+            };
             if sent.is_err() {
                 log_error("Failed to send back UDP packet", verbosity);
             }
