@@ -6,6 +6,7 @@ use crate::helpers::*;
 use crate::question::*;
 use crate::resource_record::*;
 
+#[derive(Clone)]
 pub struct Message {
     pub buffer: Vec<u8>,
 }
@@ -32,6 +33,12 @@ pub enum RCode {
 impl Message {
     pub fn id(&self) -> u16 {
         parse_u16(&self.buffer, 0)
+    }
+
+    pub fn set_id(&mut self, id: u16) {
+        let data = split_u16_into_u8(id);
+        self.buffer[0] = data[0];
+        self.buffer[1] = data[1];
     }
 
     pub fn qr(&self) -> bool {
@@ -87,7 +94,6 @@ impl Message {
         } else {
             self.buffer[3] &= 0b11011111;
         }
-
     }
 
     pub fn cd(&self) -> bool {
@@ -149,6 +155,14 @@ impl Message {
         Some(self.questions()?[0])
     }
 
+    pub fn name(&self) -> String {
+        if let Some(question) = self.question() {
+            question.qname().join(".")
+        } else {
+            String::from("")
+        }
+    }
+
     fn parse_rr(&self, offset: usize) -> ResourceRecord {
         let (name, consumed_bytes) = parse_name(&self.buffer, offset);
         let post_name: usize = consumed_bytes + offset;
@@ -166,6 +180,28 @@ impl Message {
         }
     }
 
+    pub fn set_response_ttl(&mut self, ttl: u32) -> Option<()> {
+        (0..self.ancount()).fold(self.resouce_records_offset()?, |offset, _| {
+            let (_, consumed_bytes) = parse_name(&self.buffer, offset);
+            let ttl_offset: usize = consumed_bytes + offset + 4;
+
+            let data = split_u32_into_u8(ttl);
+            self.buffer[ttl_offset] = data[0];
+            self.buffer[ttl_offset + 1] = data[1];
+            self.buffer[ttl_offset + 2] = data[2];
+            self.buffer[ttl_offset + 3] = data[3];
+
+            let rr = self.parse_rr(offset);
+            offset + rr.size
+        });
+
+        Some(())
+    }
+
+    fn resouce_records_offset(&self) -> Option<usize> {
+        Some(12 + self.questions()?.iter().map(|q| q.len()).sum::<usize>())
+    }
+
     pub fn resource_records(
         &self,
     ) -> Option<(
@@ -173,10 +209,9 @@ impl Message {
         Vec<ResourceRecord>,
         Vec<ResourceRecord>,
     )> {
-        let question_offset = 12 + self.questions()?.iter().map(|q| q.len()).sum::<usize>();
+        let question_offset = self.resouce_records_offset()?;
         let answers =
             (0..self.ancount()).fold((vec![], question_offset), |(mut acc, offset), _| {
-                // TODO: one byte too far
                 let rr = self.parse_rr(offset);
                 let size = rr.size;
                 acc.push(rr);
@@ -202,7 +237,13 @@ impl Message {
     pub fn add_answer(&mut self, answer: ResourceRecord) {
         self.set_ancount(self.ancount() + 1);
         let new_buffer = self.buffer.clone();
-        let split_point = 12 + self.questions().unwrap().into_iter().map(|q| q.len()).sum::<usize>();
+        let split_point = 12
+            + self
+                .questions()
+                .unwrap()
+                .into_iter()
+                .map(|q| q.len())
+                .sum::<usize>();
         let (first, last) = new_buffer.split_at(split_point);
         self.buffer = vec![];
         self.buffer.extend_from_slice(&first);
@@ -215,23 +256,22 @@ impl Message {
     }
 }
 
-
 pub fn parse_message(query: Vec<u8>) -> Message {
     Message { buffer: query }
 }
 
 pub fn generate_deny_response<'a>(query: &'a Message) -> Message {
-    let mut message = Message { buffer: query.buffer.clone() };
+    let mut message = Message {
+        buffer: query.buffer.clone(),
+    };
 
     message.set_qr(true);
     // Means don't understand DNSSEC. AD bit
     message.set_ad(false);
-    message.add_answer(
-        generate_answer_a(
-            &query.question().unwrap().qname(),
-            vec![0, 0, 0, 0]
-        )
-    );
+    message.add_answer(generate_answer_a(
+        &query.question().unwrap().qname(),
+        vec![0, 0, 0, 0],
+    ));
 
     message
 }
@@ -352,12 +392,24 @@ mod tests {
         assert_eq!(question.qtype(), 1);
         assert_eq!(question.qclass(), 1);
 
-        // TODO: I think the RR.get_buffer doesn't work how it should. The a_data() doesn't seem to have the right data
         assert_eq!(rrs.0[0].name, ["www", "imateapot", "org"]);
         assert_eq!(rrs.0[0].get_type(), ResourceRecordType::A);
         assert_eq!(rrs.0[0].class, 1);
         assert_eq!(rrs.0[0].ttl, 86400);
         assert_eq!(rrs.0[0].rdlength, 4);
         assert_eq!(rrs.0[0].a_data(), Some(0));
+    }
+
+    #[test]
+    fn test_set_ttl() {
+        let buffer = IMATEAPOT_ANSWER.to_vec();
+        let mut message = parse_message(buffer);
+        let rrs0 = message.resource_records().expect("couldn't parse RRs");
+
+        assert_ne!(rrs0.0[0].ttl, 42);
+
+        message.set_response_ttl(42);
+        let rrs1 = message.resource_records().expect("couldn't parse RRs");
+        assert_eq!(rrs1.0[0].ttl, 42);
     }
 }

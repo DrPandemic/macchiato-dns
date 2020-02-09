@@ -1,3 +1,4 @@
+use crate::cache::*;
 use crate::filter::*;
 use crate::helpers::*;
 use crate::instrumentation::*;
@@ -95,8 +96,9 @@ pub async fn query_remote_dns_server_doh(
     Ok(parse_message(res.to_vec()))
 }
 
-pub async fn spawn_remote_dns_query(
+pub fn spawn_remote_dns_query(
     filter: Arc<Mutex<Filter>>,
+    cache: Arc<Mutex<Cache>>,
     query: Message,
     src: SocketAddr,
     verbosity: u8,
@@ -105,31 +107,36 @@ pub async fn spawn_remote_dns_query(
 ) {
     let mut instrumentation = instrumentation;
     tokio::spawn(async move {
-        let remote_answer = if filter_query(filter, &query, verbosity) {
-            generate_deny_response(&query)
+        let cached = cache.lock().unwrap().get(&query);
+        let (should_cache, remote_answer) = if let Some(cached) = cached {
+            if verbosity > 0 {
+                println!("{} was served from cache", cached.name());
+            }
+            (false, cached)
+        } else if filter_query(filter, &query, verbosity) {
+            (false, generate_deny_response(&query))
         } else {
             // query_remote_dns_server_udp(local_address, DEFAULT_DNS_RESOLVER, query).await
             instrumentation.set_request_sent();
             if let Ok(result) = query_remote_dns_server_doh(DEFAULT_DOH_DNS_RESOLVER, query).await {
                 instrumentation.set_request_received();
-                result
+                (true, result)
             } else {
                 return log_error("Failed to send DoH", verbosity);
             }
         };
 
-        // let answer_rrs = remote_answer.resource_records().expect("couldn't parse RRs");
+        if should_cache {
+            cache.lock().unwrap().put(&remote_answer);
+        }
 
-        // println!("A data: {:?}", answer_rrs.0.into_iter().map(|rr| rr.name.join(".")).collect::<Vec<String>>());
         if response_sender
             .send((src, instrumentation, remote_answer))
             .is_err()
         {
             log_error("Failed to send a message on channel", verbosity);
         }
-    })
-    .await
-    .unwrap();
+    });
 }
 
 fn filter_query(filter: Arc<Mutex<Filter>>, query: &Message, verbosity: u8) -> bool {

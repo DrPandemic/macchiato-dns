@@ -1,4 +1,5 @@
 extern crate cuckoofilter;
+extern crate lru;
 extern crate nix;
 extern crate reqwest;
 extern crate tokio;
@@ -10,6 +11,7 @@ use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 use tokio::net::UdpSocket;
 
+pub mod cache;
 pub mod cli;
 pub mod filter;
 pub mod helpers;
@@ -19,6 +21,7 @@ pub mod network;
 pub mod question;
 pub mod resource_record;
 pub mod responder;
+use crate::cache::*;
 use crate::cli::*;
 use crate::filter::*;
 use crate::instrumentation::*;
@@ -35,6 +38,7 @@ async fn main() {
     let verbosity = opt.verbosity;
 
     let filter = Arc::new(Mutex::new(Filter::from_opt(&opt)));
+    let cache = Arc::new(Mutex::new(Cache::new()));
     let socket = UdpSocket::bind(if opt.debug {
         DEFAULT_INTERNAL_ADDRESS_DEBUG
     } else {
@@ -55,12 +59,12 @@ async fn main() {
         };
         spawn_remote_dns_query(
             Arc::clone(&filter),
+            Arc::clone(&cache),
             query,
             src,
             verbosity,
             Instrumentation::new(),
             response_sender.clone(),
-        )
-        .await;
+        );
     }
 }

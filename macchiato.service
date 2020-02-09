@@ -5,6 +5,7 @@ Wants=network.target
 
 [Service]
 Type=simple
+Environment="RUST_BACKTRACE=full"
 ExecStart=/usr/bin/macchiato-dns -s --filters-path /var/lib/macchiato-dns
 Restart=on-failure
 

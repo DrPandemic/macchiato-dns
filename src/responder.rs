@@ -20,7 +20,7 @@ pub fn spawn_responder(
                     log_error("Failed to send back UDP packet", verbosity);
                     continue;
                 }
-                if verbosity > 2 {
+                if verbosity > 1 {
                     instrumentation.display();
                 }
             }
