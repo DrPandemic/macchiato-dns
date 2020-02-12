@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 use structopt::StructOpt;
 
-/// A basic example
+/// A simple DNS proxy server that that will protect your communications
 #[derive(StructOpt, Debug)]
-#[structopt(name = "basic")]
+#[structopt(name = "Macchiato DNS")]
 pub struct Opt {
     /// Activate debug mode. Runs server on 5553
     #[structopt(short, long)]
