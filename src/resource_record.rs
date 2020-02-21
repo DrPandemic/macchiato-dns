@@ -23,26 +23,26 @@ impl ResourceRecord {
         if self.type_code != 1 || self.rdlength != 4 {
             None
         } else {
-            Some(parse_u32(&self.rdata, 0))
+            Some(parse_u32(&self.rdata, 0)?)
         }
     }
 
-    pub fn get_buffer(&self) -> Vec<u8> {
+    pub fn get_buffer(&self) -> Option<Vec<u8>> {
         let mut buffer = vec![];
 
         let mut name = encode_name(self.name.clone());
         buffer.append(&mut name);
-        let type_code = split_u16_into_u8(self.type_code);
+        let type_code = split_u16_into_u8(self.type_code)?;
         buffer.append(&mut type_code.to_vec());
-        let class = split_u16_into_u8(self.class);
+        let class = split_u16_into_u8(self.class)?;
         buffer.append(&mut class.to_vec());
-        let ttl = split_u32_into_u8(self.ttl);
+        let ttl = split_u32_into_u8(self.ttl)?;
         buffer.append(&mut ttl.to_vec());
-        let rdlength = split_u16_into_u8(self.rdlength);
+        let rdlength = split_u16_into_u8(self.rdlength)?;
         buffer.append(&mut rdlength.to_vec());
         buffer.append(&mut self.rdata.clone());
 
-        buffer
+        Some(buffer)
     }
 }
 

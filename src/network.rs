@@ -107,14 +107,22 @@ pub fn spawn_remote_dns_query(
 ) {
     let mut instrumentation = instrumentation;
     tokio::spawn(async move {
-        let cached = cache.lock().unwrap().get(&query);
+        let cached = if let Ok(mut cache) = cache.lock() {
+            cache.get(&query)
+        } else {
+            return;
+        };
         let (should_cache, remote_answer) = if let Some(cached) = cached {
             if verbosity > 0 {
-                println!("{} was served from cache", cached.name());
+                println!("{:?} was served from cache", cached.name());
             }
             (false, cached)
         } else if filter_query(filter, &query, verbosity) {
-            (false, generate_deny_response(&query))
+            if let Some(response) = generate_deny_response(&query) {
+                (false, response)
+            } else {
+                return;
+            }
         } else {
             // query_remote_dns_server_udp(local_address, DEFAULT_DNS_RESOLVER, query).await
             instrumentation.set_request_sent();
@@ -141,7 +149,11 @@ pub fn spawn_remote_dns_query(
 
 fn filter_query(filter: Arc<Mutex<Filter>>, query: &Message, verbosity: u8) -> bool {
     if let Some(question) = query.question() {
-        let name = question.qname().join(".");
+        let qname = question.qname();
+        if qname.is_none() {
+            return true;
+        }
+        let name = qname.unwrap().join(".");
         if verbosity > 1 {
             println!("{}", name);
         }

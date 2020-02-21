@@ -31,14 +31,16 @@ pub enum RCode {
 }
 
 impl Message {
-    pub fn id(&self) -> u16 {
-        parse_u16(&self.buffer, 0)
+    pub fn id(&self) -> Option<u16> {
+        Some(parse_u16(&self.buffer, 0)?)
     }
 
-    pub fn set_id(&mut self, id: u16) {
-        let data = split_u16_into_u8(id);
+    pub fn set_id(&mut self, id: u16) -> Option<()> {
+        let data = split_u16_into_u8(id)?;
         self.buffer[0] = data[0];
         self.buffer[1] = data[1];
+
+        Some(())
     }
 
     pub fn qr(&self) -> bool {
@@ -112,30 +114,32 @@ impl Message {
         }
     }
 
-    pub fn qdcount(&self) -> u16 {
-        parse_u16(&self.buffer, 4)
+    pub fn qdcount(&self) -> Option<u16> {
+        Some(parse_u16(&self.buffer, 4)?)
     }
 
-    pub fn ancount(&self) -> u16 {
-        parse_u16(&self.buffer, 6)
+    pub fn ancount(&self) -> Option<u16> {
+        Some(parse_u16(&self.buffer, 6)?)
     }
 
-    pub fn set_ancount(&mut self, ancount: u16) {
-        let data = split_u16_into_u8(ancount);
+    pub fn set_ancount(&mut self, ancount: u16) -> Option<()> {
+        let data = split_u16_into_u8(ancount)?;
         self.buffer[6] = data[0];
         self.buffer[7] = data[1];
+
+        Some(())
     }
 
-    pub fn nscount(&self) -> u16 {
-        parse_u16(&self.buffer, 8)
+    pub fn nscount(&self) -> Option<u16> {
+        Some(parse_u16(&self.buffer, 8)?)
     }
 
-    pub fn arcount(&self) -> u16 {
-        parse_u16(&self.buffer, 10)
+    pub fn arcount(&self) -> Option<u16> {
+        Some(parse_u16(&self.buffer, 10)?)
     }
 
     fn questions(&self) -> Option<Vec<Question>> {
-        (0..self.qdcount())
+        (0..self.qdcount()?)
             .fold(Some((vec![], 12)), |maybe_acc, _| match maybe_acc {
                 Some((mut acc, offset)) => {
                     let name_end = self.buffer[offset..].iter().position(|&c| c == 0b0)?;
@@ -155,51 +159,57 @@ impl Message {
         Some(self.questions()?[0])
     }
 
-    pub fn name(&self) -> String {
-        if let Some(question) = self.question() {
-            question.qname().join(".")
+    pub fn name(&self) -> Option<String> {
+        Some(if let Some(question) = self.question() {
+            question.qname()?.join(".")
         } else {
             String::from("")
-        }
+        })
     }
 
-    fn parse_rr(&self, offset: usize) -> ResourceRecord {
-        let (name, consumed_bytes) = parse_name(&self.buffer, offset);
+    fn parse_rr(&self, offset: usize) -> Option<ResourceRecord> {
+        let (name, consumed_bytes) = parse_name(&self.buffer, offset)?;
         let post_name: usize = consumed_bytes + offset;
-        let rdlength = parse_u16(&self.buffer, post_name + 8);
+        let rdlength = parse_u16(&self.buffer, post_name + 8)?;
         let post_header = post_name + 10;
         // Class 41 shouldn't be parse as a RR. Maybe create a new struct for Opt?
-        ResourceRecord {
+        Some(ResourceRecord {
             name: name,
             rdlength: rdlength,
-            type_code: parse_u16(&self.buffer, post_name),
-            class: parse_u16(&self.buffer, post_name + 2),
-            ttl: parse_u32(&self.buffer, post_name + 4),
+            type_code: parse_u16(&self.buffer, post_name)?,
+            class: parse_u16(&self.buffer, post_name + 2)?,
+            ttl: parse_u32(&self.buffer, post_name + 4)?,
             rdata: self.buffer[post_header..post_header + rdlength as usize].to_vec(),
             size: consumed_bytes + rdlength as usize + 10,
-        }
+        })
     }
 
     pub fn set_response_ttl(&mut self, ttl: u32) -> Option<()> {
-        (0..self.ancount()).fold(self.resouce_records_offset()?, |offset, _| {
-            let (_, consumed_bytes) = parse_name(&self.buffer, offset);
+        let data = split_u32_into_u8(ttl)?;
+        (0..self.ancount()?).fold(self.resouce_records_offset(), |maybe_offset, _| {
+            let offset = maybe_offset?;
+            let (_, consumed_bytes) = parse_name(&self.buffer, offset)?;
             let ttl_offset: usize = consumed_bytes + offset + 4;
 
-            let data = split_u32_into_u8(ttl);
             self.buffer[ttl_offset] = data[0];
             self.buffer[ttl_offset + 1] = data[1];
             self.buffer[ttl_offset + 2] = data[2];
             self.buffer[ttl_offset + 3] = data[3];
 
-            let rr = self.parse_rr(offset);
-            offset + rr.size
-        });
+            let rr = self.parse_rr(offset)?;
+            Some(offset + rr.size)
+        })?;
 
         Some(())
     }
 
     fn resouce_records_offset(&self) -> Option<usize> {
-        Some(12 + self.questions()?.iter().map(|q| q.len()).sum::<usize>())
+        Some(
+            12 + self
+                .questions()?
+                .iter()
+                .fold(Some(0), |acc, q| Some(acc? + q.len()?))?,
+        )
     }
 
     pub fn resource_records(
@@ -211,44 +221,49 @@ impl Message {
     )> {
         let question_offset = self.resouce_records_offset()?;
         let answers =
-            (0..self.ancount()).fold((vec![], question_offset), |(mut acc, offset), _| {
-                let rr = self.parse_rr(offset);
+            (0..self.ancount()?).fold(Some((vec![], question_offset)), |maybe_acc, _| {
+                let (mut acc, offset) = maybe_acc?;
+                let rr = self.parse_rr(offset)?;
                 let size = rr.size;
                 acc.push(rr);
-                (acc, offset + size)
-            });
-        let authorities = (0..self.nscount()).fold((vec![], answers.1), |(mut acc, offset), _| {
-            let rr = self.parse_rr(offset);
-            let size = rr.size;
-            acc.push(rr);
-            (acc, offset + size)
-        });
+                Some((acc, offset + size))
+            })?;
+        let authorities =
+            (0..self.nscount()?).fold(Some((vec![], answers.1)), |maybe_acc, _| {
+                let (mut acc, offset) = maybe_acc?;
+                let rr = self.parse_rr(offset)?;
+                let size = rr.size;
+                acc.push(rr);
+                Some((acc, offset + size))
+            })?;
         let additionals =
-            (0..self.arcount()).fold((vec![], authorities.1), |(mut acc, offset), _| {
-                let rr = self.parse_rr(offset);
+            (0..self.arcount()?).fold(Some((vec![], authorities.1)), |maybe_acc, _| {
+                let (mut acc, offset) = maybe_acc?;
+                let rr = self.parse_rr(offset)?;
                 let size = rr.size;
                 acc.push(rr);
-                (acc, offset + size)
-            });
+                Some((acc, offset + size))
+            })?;
 
         Some((answers.0, authorities.0, additionals.0))
     }
 
-    pub fn add_answer(&mut self, answer: ResourceRecord) {
-        self.set_ancount(self.ancount() + 1);
+    pub fn add_answer(&mut self, answer: ResourceRecord) -> Option<()> {
+        self.set_ancount(self.ancount()? + 1)?;
         let new_buffer = self.buffer.clone();
         let split_point = 12
             + self
                 .questions()
                 .unwrap()
                 .into_iter()
-                .map(|q| q.len())
-                .sum::<usize>();
+                .fold(Some(0), |acc, q| Some(acc? + q.len()?))?;
         let (first, last) = new_buffer.split_at(split_point);
         self.buffer = vec![];
         self.buffer.extend_from_slice(&first);
-        self.buffer.extend_from_slice(&answer.get_buffer());
+        self.buffer.extend_from_slice(&answer.get_buffer()?);
         self.buffer.extend_from_slice(&last);
+
+        Some(())
     }
 
     pub async fn send_to(&self, socket: &mut SendHalf, target: &SocketAddr) -> io::Result<usize> {
@@ -260,7 +275,7 @@ pub fn parse_message(query: Vec<u8>) -> Message {
     Message { buffer: query }
 }
 
-pub fn generate_deny_response<'a>(query: &'a Message) -> Message {
+pub fn generate_deny_response<'a>(query: &'a Message) -> Option<Message> {
     let mut message = Message {
         buffer: query.buffer.clone(),
     };
@@ -269,11 +284,11 @@ pub fn generate_deny_response<'a>(query: &'a Message) -> Message {
     // Means don't understand DNSSEC. AD bit
     message.set_ad(false);
     message.add_answer(generate_answer_a(
-        &query.question().unwrap().qname(),
+        &query.question()?.qname()?,
         vec![0, 0, 0, 0],
-    ));
+    ))?;
 
-    message
+    Some(message)
 }
 
 #[cfg(test)]
@@ -298,7 +313,7 @@ mod tests {
         let question = message.question().expect("couldn't parse questions");
         let rrs = message.resource_records().expect("couldn't parse RRs");
 
-        assert_eq!(message.id(), 14624);
+        assert_eq!(message.id(), Some(14624));
         assert_eq!(message.qr(), false);
         assert_eq!(message.opcode(), OpCode::QUERY);
         assert_eq!(message.aa(), false);
@@ -309,13 +324,20 @@ mod tests {
         assert_eq!(message.ad(), true);
         assert_eq!(message.cd(), false);
         assert_eq!(message.rcode(), RCode::NoError);
-        assert_eq!(message.qdcount(), 1);
-        assert_eq!(message.ancount(), 0);
-        assert_eq!(message.nscount(), 0);
-        assert_eq!(message.arcount(), 1);
-        assert_eq!(question.qname(), ["www", "imateapot", "org"]);
-        assert_eq!(question.qtype(), 1);
-        assert_eq!(question.qclass(), 1);
+        assert_eq!(message.qdcount(), Some(1));
+        assert_eq!(message.ancount(), Some(0));
+        assert_eq!(message.nscount(), Some(0));
+        assert_eq!(message.arcount(), Some(1));
+        assert_eq!(
+            question.qname(),
+            Some(vec![
+                String::from("www"),
+                String::from("imateapot"),
+                String::from("org")
+            ])
+        );
+        assert_eq!(question.qtype(), Some(1));
+        assert_eq!(question.qclass(), Some(1));
 
         assert_eq!(rrs.2[0].name, Vec::<String>::new());
         assert_eq!(rrs.2[0].get_type(), ResourceRecordType::Opt);
@@ -329,7 +351,7 @@ mod tests {
         let question = message.question().expect("couldn't parse questions");
         let rrs = message.resource_records().expect("couldn't parse RRs");
 
-        assert_eq!(message.id(), 14624);
+        assert_eq!(message.id(), Some(14624));
         assert_eq!(message.qr(), true);
         assert_eq!(message.opcode(), OpCode::QUERY);
         assert_eq!(message.aa(), false);
@@ -340,13 +362,20 @@ mod tests {
         assert_eq!(message.ad(), false);
         assert_eq!(message.cd(), false);
         assert_eq!(message.rcode(), RCode::NoError);
-        assert_eq!(message.qdcount(), 1);
-        assert_eq!(message.ancount(), 2);
-        assert_eq!(message.nscount(), 0);
-        assert_eq!(message.arcount(), 1);
-        assert_eq!(question.qname(), ["www", "imateapot", "org"]);
-        assert_eq!(question.qtype(), 1);
-        assert_eq!(question.qclass(), 1);
+        assert_eq!(message.qdcount(), Some(1));
+        assert_eq!(message.ancount(), Some(2));
+        assert_eq!(message.nscount(), Some(0));
+        assert_eq!(message.arcount(), Some(1));
+        assert_eq!(
+            question.qname(),
+            Some(vec![
+                String::from("www"),
+                String::from("imateapot"),
+                String::from("org")
+            ])
+        );
+        assert_eq!(question.qtype(), Some(1));
+        assert_eq!(question.qclass(), Some(1));
 
         assert_eq!(rrs.0[0].name, ["www", "imateapot", "org"]);
         assert_eq!(rrs.0[0].get_type(), ResourceRecordType::CName);
@@ -369,7 +398,7 @@ mod tests {
     fn test_generate_deny_response() {
         let buffer = IMATEAPOT_QUESTION.to_vec();
         let message = parse_message(buffer);
-        let answer = generate_deny_response(&message);
+        let answer = generate_deny_response(&message).unwrap();
         let question = answer.question().expect("couldn't parse questions");
         let rrs = answer.resource_records().expect("couldn't parse RRs");
 
@@ -384,13 +413,20 @@ mod tests {
         assert_eq!(answer.ad(), false);
         assert_eq!(answer.cd(), false);
         assert_eq!(answer.rcode(), RCode::NoError);
-        assert_eq!(answer.qdcount(), 1);
-        assert_eq!(answer.ancount(), 1);
-        assert_eq!(answer.nscount(), 0);
-        assert_eq!(answer.arcount(), 1);
-        assert_eq!(question.qname(), ["www", "imateapot", "org"]);
-        assert_eq!(question.qtype(), 1);
-        assert_eq!(question.qclass(), 1);
+        assert_eq!(answer.qdcount(), Some(1));
+        assert_eq!(answer.ancount(), Some(1));
+        assert_eq!(answer.nscount(), Some(0));
+        assert_eq!(answer.arcount(), Some(1));
+        assert_eq!(
+            question.qname(),
+            Some(vec![
+                String::from("www"),
+                String::from("imateapot"),
+                String::from("org")
+            ])
+        );
+        assert_eq!(question.qtype(), Some(1));
+        assert_eq!(question.qclass(), Some(1));
 
         assert_eq!(rrs.0[0].name, ["www", "imateapot", "org"]);
         assert_eq!(rrs.0[0].get_type(), ResourceRecordType::A);

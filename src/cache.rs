@@ -15,12 +15,12 @@ impl Cache {
 
     pub fn get(&mut self, query: &Message) -> Option<Message> {
         let question = query.question()?;
-        let key = (question.qname().join("."), question.qtype());
+        let key = (question.qname()?.join("."), question.qtype()?);
         let (time, message) = self.data.get(&key)?;
         let time_difference = SystemTime::now().duration_since(time.clone()).ok()?;
         if time > &SystemTime::now() {
             let mut response = (*message).clone();
-            response.set_id(query.id());
+            response.set_id(query.id()?)?;
             response.set_response_ttl(time_difference.as_secs() as u32);
             Some(response)
         } else {
@@ -29,7 +29,7 @@ impl Cache {
         }
     }
 
-    pub fn put(&mut self, message: &Message) {
+    pub fn put(&mut self, message: &Message) -> Option<()> {
         if let (Some((responses, _, _)), Some(question)) =
             (message.resource_records(), message.question())
         {
@@ -40,11 +40,13 @@ impl Cache {
                 if ttl > SystemTime::now() {
                     // I think this is wrong. What if the TTLs are different?
                     self.data.put(
-                        (responses[0].name.join("."), question.qtype()),
+                        (responses[0].name.join("."), question.qtype()?),
                         (ttl, message.clone()),
                     );
                 }
             }
         }
+
+        Some(())
     }
 }
