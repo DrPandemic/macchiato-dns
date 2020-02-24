@@ -14,15 +14,21 @@ impl Cache {
     }
 
     pub fn get(&mut self, query: &Message) -> Option<Message> {
-        let question = query.question()?;
-        let key = (question.qname()?.join("."), question.qtype()?);
+        let question = query.question().ok()?;
+        let key = (question.qname().ok()?.join("."), question.qtype().ok()?);
         let (time, message) = self.data.get(&key)?;
         let time_difference = SystemTime::now().duration_since(time.clone()).ok()?;
         if time > &SystemTime::now() {
             let mut response = (*message).clone();
-            response.set_id(query.id()?)?;
-            response.set_response_ttl(time_difference.as_secs() as u32);
-            Some(response)
+            response.set_id(query.id().ok()?).ok()?;
+            if response
+                .set_response_ttl(time_difference.as_secs() as u32)
+                .is_ok()
+            {
+                Some(response)
+            } else {
+                None
+            }
         } else {
             self.data.pop(&key);
             None
@@ -30,7 +36,7 @@ impl Cache {
     }
 
     pub fn put(&mut self, message: &Message) -> Option<()> {
-        if let (Some((responses, _, _)), Some(question)) =
+        if let (Ok((responses, _, _)), Ok(question)) =
             (message.resource_records(), message.question())
         {
             if responses.len() > 0 {
@@ -40,7 +46,7 @@ impl Cache {
                 if ttl > SystemTime::now() {
                     // I think this is wrong. What if the TTLs are different?
                     self.data.put(
-                        (responses[0].name.join("."), question.qtype()?),
+                        (responses[0].name.join("."), question.qtype().ok()?),
                         (ttl, message.clone()),
                     );
                 }

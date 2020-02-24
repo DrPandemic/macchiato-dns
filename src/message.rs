@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::io;
 use std::net::SocketAddr;
 use tokio::net::udp::SendHalf;
@@ -31,79 +32,91 @@ pub enum RCode {
 }
 
 impl Message {
-    pub fn id(&self) -> Option<u16> {
-        Some(parse_u16(&self.buffer, 0)?)
+    pub fn id(&self) -> Result<u16, Box<dyn Error>> {
+        Ok(parse_u16(&self.buffer, 0)?)
     }
 
-    pub fn set_id(&mut self, id: u16) -> Option<()> {
-        let data = split_u16_into_u8(id)?;
-        self.buffer[0] = data[0];
-        self.buffer[1] = data[1];
+    pub fn set_id(&mut self, id: u16) -> Result<(), Box<dyn Error>> {
+        self.write_buffer(0, &split_u16_into_u8(id)?)?;
 
-        Some(())
+        Ok(())
     }
 
-    pub fn qr(&self) -> bool {
-        (self.buffer[2] >> 7) == 0b1u8
+    pub fn qr(&self) -> Result<bool, Box<dyn Error>> {
+        Ok((self.buffer.get(2).ok_or(MalformedMessageError)? >> 7) == 0b1u8)
     }
 
-    pub fn set_qr(&mut self, answer: bool) {
+    pub fn set_qr(&mut self, answer: bool) -> Result<(), Box<dyn Error>> {
+        let data = self.buffer.get_mut(2).ok_or(MalformedMessageError)?;
         if answer {
-            self.buffer[2] |= 0b10000000;
+            *data |= 0b10000000;
         } else {
-            self.buffer[2] &= 0b01111111;
+            *data &= 0b01111111;
         }
+        Ok(())
     }
 
-    pub fn opcode(&self) -> OpCode {
-        match (self.buffer[2] << 1) >> 4 {
-            0b0 => OpCode::QUERY,
-            0b1 => OpCode::IQUERY,
-            0b10 => OpCode::STATUS,
-            _ => OpCode::Other,
-        }
+    pub fn opcode(&self) -> Result<OpCode, Box<dyn Error>> {
+        Ok(
+            match ((self.buffer.get(2).ok_or(MalformedMessageError)? << 1) as u8) >> 4 {
+                0b0 => OpCode::QUERY,
+                0b1 => OpCode::IQUERY,
+                0b10 => OpCode::STATUS,
+                _ => OpCode::Other,
+            },
+        )
     }
 
-    pub fn aa(&self) -> bool {
-        (self.buffer[2] << 5) >> 7 == 0b1
+    pub fn aa(&self) -> Result<bool, Box<dyn Error>> {
+        let data: &u8 = self.buffer.get(2).ok_or(MalformedMessageError)?;
+        Ok((*data << 5) >> 7 == 1)
     }
 
-    pub fn tc(&self) -> bool {
-        (self.buffer[2] << 6) >> 7 == 0b1
+    pub fn tc(&self) -> Result<bool, Box<dyn Error>> {
+        let data: &u8 = self.buffer.get(2).ok_or(MalformedMessageError)?;
+        Ok((*data << 6) >> 7 == 0b1)
     }
 
-    pub fn rd(&self) -> bool {
-        (self.buffer[2] << 7) >> 7 == 0b1
+    pub fn rd(&self) -> Result<bool, Box<dyn Error>> {
+        let data: &u8 = self.buffer.get(2).ok_or(MalformedMessageError)?;
+        Ok((*data << 7) >> 7 == 0b1)
     }
 
-    pub fn ra(&self) -> bool {
-        self.buffer[3] >> 7 == 0b1
+    pub fn ra(&self) -> Result<bool, Box<dyn Error>> {
+        let data: &u8 = self.buffer.get(3).ok_or(MalformedMessageError)?;
+        Ok(*data >> 7 == 0b1)
     }
 
-    pub fn z(&self) -> bool {
-        (self.buffer[3] << 1) >> 7 == 0b1
+    pub fn z(&self) -> Result<bool, Box<dyn Error>> {
+        let data: &u8 = self.buffer.get(3).ok_or(MalformedMessageError)?;
+        Ok((*data << 1) >> 7 == 0b1)
     }
 
     // http://www.networksorcery.com/enp/rfc/rfc3655.txt
     // https://tools.ietf.org/html/rfc6840#page-10
-    pub fn ad(&self) -> bool {
-        (self.buffer[3] << 2) >> 7 == 0b1
+    pub fn ad(&self) -> Result<bool, Box<dyn Error>> {
+        let data: &u8 = self.buffer.get(3).ok_or(MalformedMessageError)?;
+        Ok((*data << 2) >> 7 == 0b1)
     }
 
-    pub fn set_ad(&mut self, ad: bool) {
+    pub fn set_ad(&mut self, ad: bool) -> Result<(), Box<dyn Error>> {
+        let data = self.buffer.get_mut(3).ok_or(MalformedMessageError)?;
         if ad {
-            self.buffer[3] |= 0b00100000;
+            *data |= 0b00100000;
         } else {
-            self.buffer[3] &= 0b11011111;
+            *data &= 0b11011111;
         }
+        Ok(())
     }
 
-    pub fn cd(&self) -> bool {
-        (self.buffer[3] << 3) >> 7 == 0b1
+    pub fn cd(&self) -> Result<bool, Box<dyn Error>> {
+        let data: &u8 = self.buffer.get(3).ok_or(MalformedMessageError)?;
+        Ok((*data << 3) >> 7 == 0b1)
     }
 
-    pub fn rcode(&self) -> RCode {
-        match (self.buffer[3] << 4) >> 4 {
+    pub fn rcode(&self) -> Result<RCode, Box<dyn Error>> {
+        let data: &u8 = self.buffer.get(3).ok_or(MalformedMessageError)?;
+        Ok(match (*data << 4) >> 4 as u8 {
             0b0 => RCode::NoError,
             0b1 => RCode::FormatError,
             0b10 => RCode::ServerFailure,
@@ -111,144 +124,159 @@ impl Message {
             0b100 => RCode::NotImplemented,
             0b101 => RCode::Refused,
             _ => RCode::Other,
-        }
+        })
     }
 
-    pub fn qdcount(&self) -> Option<u16> {
-        Some(parse_u16(&self.buffer, 4)?)
+    pub fn qdcount(&self) -> Result<u16, Box<dyn Error>> {
+        Ok(parse_u16(&self.buffer, 4)?)
     }
 
-    pub fn ancount(&self) -> Option<u16> {
-        Some(parse_u16(&self.buffer, 6)?)
+    pub fn ancount(&self) -> Result<u16, Box<dyn Error>> {
+        Ok(parse_u16(&self.buffer, 6)?)
     }
 
-    pub fn set_ancount(&mut self, ancount: u16) -> Option<()> {
-        let data = split_u16_into_u8(ancount)?;
-        self.buffer[6] = data[0];
-        self.buffer[7] = data[1];
-
-        Some(())
+    pub fn set_ancount(&mut self, ancount: u16) -> Result<(), Box<dyn Error>> {
+        self.write_buffer(6, &split_u16_into_u8(ancount)?)?;
+        Ok(())
     }
 
-    pub fn nscount(&self) -> Option<u16> {
-        Some(parse_u16(&self.buffer, 8)?)
+    pub fn nscount(&self) -> Result<u16, Box<dyn Error>> {
+        Ok(parse_u16(&self.buffer, 8)?)
     }
 
-    pub fn arcount(&self) -> Option<u16> {
-        Some(parse_u16(&self.buffer, 10)?)
+    pub fn arcount(&self) -> Result<u16, Box<dyn Error>> {
+        Ok(parse_u16(&self.buffer, 10)?)
     }
 
-    fn questions(&self) -> Option<Vec<Question>> {
+    fn questions(&self) -> Result<Vec<Question>, Box<dyn Error>> {
         (0..self.qdcount()?)
-            .fold(Some((vec![], 12)), |maybe_acc, _| match maybe_acc {
-                Some((mut acc, offset)) => {
-                    let name_end = self.buffer[offset..].iter().position(|&c| c == 0b0)?;
-                    acc.push(Question {
-                        buffer: &self.buffer[..(offset + name_end + 4 + 1)],
-                        offset: offset,
-                    });
-                    Some((acc, offset + name_end + 4 + 1))
-                }
-                _ => None,
+            .fold(Ok((vec![], 12)), |maybe_acc, _| {
+                let (mut acc, offset) = maybe_acc?;
+                let name_end = self
+                    .buffer
+                    .get(offset..)
+                    .ok_or(MalformedMessageError)?
+                    .iter()
+                    .position(|&c| c == 0b0)
+                    .ok_or(MalformedMessageError)?;
+                acc.push(Question {
+                    buffer: &self
+                        .buffer
+                        .get(..(offset + name_end + 4 + 1))
+                        .ok_or(MalformedMessageError)?,
+                    offset: offset,
+                });
+                Ok((acc, offset + name_end + 4 + 1))
             })
             .map(|x| x.0)
     }
 
     // https://stackoverflow.com/a/4083071 multiple questions is not really supported
-    pub fn question(&self) -> Option<Question> {
-        Some(self.questions()?[0])
+    pub fn question(&self) -> Result<Question, Box<dyn Error>> {
+        Ok(self.questions()?[0])
     }
 
-    pub fn name(&self) -> Option<String> {
-        Some(if let Some(question) = self.question() {
+    pub fn name(&self) -> Result<String, Box<dyn Error>> {
+        Ok(if let Ok(question) = self.question() {
             question.qname()?.join(".")
         } else {
             String::from("")
         })
     }
 
-    fn parse_rr(&self, offset: usize) -> Option<ResourceRecord> {
+    fn parse_rr(&self, offset: usize) -> Result<ResourceRecord, Box<dyn Error>> {
         let (name, consumed_bytes) = parse_name(&self.buffer, offset)?;
         let post_name: usize = consumed_bytes + offset;
         let rdlength = parse_u16(&self.buffer, post_name + 8)?;
         let post_header = post_name + 10;
         // Class 41 shouldn't be parse as a RR. Maybe create a new struct for Opt?
-        Some(ResourceRecord {
+        Ok(ResourceRecord {
             name: name,
             rdlength: rdlength,
             type_code: parse_u16(&self.buffer, post_name)?,
             class: parse_u16(&self.buffer, post_name + 2)?,
             ttl: parse_u32(&self.buffer, post_name + 4)?,
-            rdata: self.buffer[post_header..post_header + rdlength as usize].to_vec(),
+            rdata: self
+                .buffer
+                .get(post_header..post_header + rdlength as usize)
+                .ok_or(MalformedMessageError)?
+                .to_vec(),
             size: consumed_bytes + rdlength as usize + 10,
         })
     }
 
-    pub fn set_response_ttl(&mut self, ttl: u32) -> Option<()> {
+    pub fn set_response_ttl(&mut self, ttl: u32) -> Result<(), Box<dyn Error>> {
         let data = split_u32_into_u8(ttl)?;
         (0..self.ancount()?).fold(self.resouce_records_offset(), |maybe_offset, _| {
             let offset = maybe_offset?;
             let (_, consumed_bytes) = parse_name(&self.buffer, offset)?;
             let ttl_offset: usize = consumed_bytes + offset + 4;
 
-            self.buffer[ttl_offset] = data[0];
-            self.buffer[ttl_offset + 1] = data[1];
-            self.buffer[ttl_offset + 2] = data[2];
-            self.buffer[ttl_offset + 3] = data[3];
+            self.write_buffer(ttl_offset, &data)?;
 
             let rr = self.parse_rr(offset)?;
-            Some(offset + rr.size)
+            Ok(offset + rr.size)
         })?;
 
-        Some(())
+        Ok(())
     }
 
-    fn resouce_records_offset(&self) -> Option<usize> {
-        Some(
-            12 + self
+    fn resouce_records_offset(&self) -> Result<usize, Box<dyn Error>> {
+        Ok(12
+            + self
                 .questions()?
                 .iter()
-                .fold(Some(0), |acc, q| Some(acc? + q.len()?))?,
-        )
+                .fold(Ok(0), |acc: Result<usize, Box<dyn Error>>, q| {
+                    Ok(acc? + q.len()?)
+                })?)
     }
 
     pub fn resource_records(
         &self,
-    ) -> Option<(
-        Vec<ResourceRecord>,
-        Vec<ResourceRecord>,
-        Vec<ResourceRecord>,
-    )> {
+    ) -> Result<
+        (
+            Vec<ResourceRecord>,
+            Vec<ResourceRecord>,
+            Vec<ResourceRecord>,
+        ),
+        Box<dyn Error>,
+    > {
         let question_offset = self.resouce_records_offset()?;
-        let answers =
-            (0..self.ancount()?).fold(Some((vec![], question_offset)), |maybe_acc, _| {
+        let answers = (0..self.ancount()?).fold(
+            Ok((vec![], question_offset)),
+            |maybe_acc: Result<(Vec<ResourceRecord>, usize), Box<dyn Error>>, _| {
                 let (mut acc, offset) = maybe_acc?;
                 let rr = self.parse_rr(offset)?;
                 let size = rr.size;
                 acc.push(rr);
-                Some((acc, offset + size))
-            })?;
-        let authorities =
-            (0..self.nscount()?).fold(Some((vec![], answers.1)), |maybe_acc, _| {
+                Ok((acc, offset + size))
+            },
+        )?;
+        let authorities = (0..self.nscount()?).fold(
+            Ok((vec![], answers.1)),
+            |maybe_acc: Result<(Vec<ResourceRecord>, usize), Box<dyn Error>>, _| {
                 let (mut acc, offset) = maybe_acc?;
                 let rr = self.parse_rr(offset)?;
                 let size = rr.size;
                 acc.push(rr);
-                Some((acc, offset + size))
-            })?;
-        let additionals =
-            (0..self.arcount()?).fold(Some((vec![], authorities.1)), |maybe_acc, _| {
+                Ok((acc, offset + size))
+            },
+        )?;
+        let additionals = (0..self.arcount()?).fold(
+            Ok((vec![], authorities.1)),
+            |maybe_acc: Result<(Vec<ResourceRecord>, usize), Box<dyn Error>>, _| {
                 let (mut acc, offset) = maybe_acc?;
                 let rr = self.parse_rr(offset)?;
                 let size = rr.size;
                 acc.push(rr);
-                Some((acc, offset + size))
-            })?;
+                Ok((acc, offset + size))
+            },
+        )?;
 
-        Some((answers.0, authorities.0, additionals.0))
+        Ok((answers.0, authorities.0, additionals.0))
     }
 
-    pub fn add_answer(&mut self, answer: ResourceRecord) -> Option<()> {
+    pub fn add_answer(&mut self, answer: ResourceRecord) -> Result<(), Box<dyn Error>> {
         self.set_ancount(self.ancount()? + 1)?;
         let new_buffer = self.buffer.clone();
         let split_point = 12
@@ -256,18 +284,33 @@ impl Message {
                 .questions()
                 .unwrap()
                 .into_iter()
-                .fold(Some(0), |acc, q| Some(acc? + q.len()?))?;
+                .fold(Ok(0), |acc: Result<usize, Box<dyn Error>>, q| {
+                    Ok(acc? + q.len()?)
+                })?;
         let (first, last) = new_buffer.split_at(split_point);
         self.buffer = vec![];
         self.buffer.extend_from_slice(&first);
         self.buffer.extend_from_slice(&answer.get_buffer()?);
         self.buffer.extend_from_slice(&last);
 
-        Some(())
+        Ok(())
     }
 
     pub async fn send_to(&self, socket: &mut SendHalf, target: &SocketAddr) -> io::Result<usize> {
         socket.send_to(&self.buffer, target).await
+    }
+
+    fn write_buffer(&mut self, position: usize, data: &[u8]) -> Result<(), Box<dyn Error>> {
+        if (position + data.len()) > self.buffer.len() {
+            return Err(Box::new(MalformedMessageError));
+        }
+        for (i, datum) in data.into_iter().enumerate() {
+            *self
+                .buffer
+                .get_mut(position + i)
+                .ok_or(MalformedMessageError)? = *datum;
+        }
+        Ok(())
     }
 }
 
@@ -275,20 +318,20 @@ pub fn parse_message(query: Vec<u8>) -> Message {
     Message { buffer: query }
 }
 
-pub fn generate_deny_response<'a>(query: &'a Message) -> Option<Message> {
+pub fn generate_deny_response<'a>(query: &'a Message) -> Result<Message, Box<dyn Error>> {
     let mut message = Message {
         buffer: query.buffer.clone(),
     };
 
-    message.set_qr(true);
+    message.set_qr(true)?;
     // Means don't understand DNSSEC. AD bit
-    message.set_ad(false);
+    message.set_ad(false)?;
     message.add_answer(generate_answer_a(
         &query.question()?.qname()?,
         vec![0, 0, 0, 0],
     ))?;
 
-    Some(message)
+    Ok(message)
 }
 
 #[cfg(test)]
@@ -313,31 +356,31 @@ mod tests {
         let question = message.question().expect("couldn't parse questions");
         let rrs = message.resource_records().expect("couldn't parse RRs");
 
-        assert_eq!(message.id(), Some(14624));
-        assert_eq!(message.qr(), false);
-        assert_eq!(message.opcode(), OpCode::QUERY);
-        assert_eq!(message.aa(), false);
-        assert_eq!(message.tc(), false);
-        assert_eq!(message.rd(), true);
-        assert_eq!(message.ra(), false);
-        assert_eq!(message.z(), false);
-        assert_eq!(message.ad(), true);
-        assert_eq!(message.cd(), false);
-        assert_eq!(message.rcode(), RCode::NoError);
-        assert_eq!(message.qdcount(), Some(1));
-        assert_eq!(message.ancount(), Some(0));
-        assert_eq!(message.nscount(), Some(0));
-        assert_eq!(message.arcount(), Some(1));
+        assert_eq!(message.id().unwrap(), 14624);
+        assert_eq!(message.qr().unwrap(), false);
+        assert_eq!(message.opcode().unwrap(), OpCode::QUERY);
+        assert_eq!(message.aa().unwrap(), false);
+        assert_eq!(message.tc().unwrap(), false);
+        assert_eq!(message.rd().unwrap(), true);
+        assert_eq!(message.ra().unwrap(), false);
+        assert_eq!(message.z().unwrap(), false);
+        assert_eq!(message.ad().unwrap(), true);
+        assert_eq!(message.cd().unwrap(), false);
+        assert_eq!(message.rcode().unwrap(), RCode::NoError);
+        assert_eq!(message.qdcount().unwrap(), 1);
+        assert_eq!(message.ancount().unwrap(), 0);
+        assert_eq!(message.nscount().unwrap(), 0);
+        assert_eq!(message.arcount().unwrap(), 1);
         assert_eq!(
-            question.qname(),
-            Some(vec![
+            question.qname().unwrap(),
+            vec![
                 String::from("www"),
                 String::from("imateapot"),
                 String::from("org")
-            ])
+            ]
         );
-        assert_eq!(question.qtype(), Some(1));
-        assert_eq!(question.qclass(), Some(1));
+        assert_eq!(question.qtype().unwrap(), 1);
+        assert_eq!(question.qclass().unwrap(), 1);
 
         assert_eq!(rrs.2[0].name, Vec::<String>::new());
         assert_eq!(rrs.2[0].get_type(), ResourceRecordType::Opt);
@@ -351,31 +394,31 @@ mod tests {
         let question = message.question().expect("couldn't parse questions");
         let rrs = message.resource_records().expect("couldn't parse RRs");
 
-        assert_eq!(message.id(), Some(14624));
-        assert_eq!(message.qr(), true);
-        assert_eq!(message.opcode(), OpCode::QUERY);
-        assert_eq!(message.aa(), false);
-        assert_eq!(message.tc(), false);
-        assert_eq!(message.rd(), true);
-        assert_eq!(message.ra(), true);
-        assert_eq!(message.z(), false);
-        assert_eq!(message.ad(), false);
-        assert_eq!(message.cd(), false);
-        assert_eq!(message.rcode(), RCode::NoError);
-        assert_eq!(message.qdcount(), Some(1));
-        assert_eq!(message.ancount(), Some(2));
-        assert_eq!(message.nscount(), Some(0));
-        assert_eq!(message.arcount(), Some(1));
+        assert_eq!(message.id().unwrap(), 14624);
+        assert_eq!(message.qr().unwrap(), true);
+        assert_eq!(message.opcode().unwrap(), OpCode::QUERY);
+        assert_eq!(message.aa().unwrap(), false);
+        assert_eq!(message.tc().unwrap(), false);
+        assert_eq!(message.rd().unwrap(), true);
+        assert_eq!(message.ra().unwrap(), true);
+        assert_eq!(message.z().unwrap(), false);
+        assert_eq!(message.ad().unwrap(), false);
+        assert_eq!(message.cd().unwrap(), false);
+        assert_eq!(message.rcode().unwrap(), RCode::NoError);
+        assert_eq!(message.qdcount().unwrap(), 1);
+        assert_eq!(message.ancount().unwrap(), 2);
+        assert_eq!(message.nscount().unwrap(), 0);
+        assert_eq!(message.arcount().unwrap(), 1);
         assert_eq!(
-            question.qname(),
-            Some(vec![
+            question.qname().unwrap(),
+            vec![
                 String::from("www"),
                 String::from("imateapot"),
                 String::from("org")
-            ])
+            ]
         );
-        assert_eq!(question.qtype(), Some(1));
-        assert_eq!(question.qclass(), Some(1));
+        assert_eq!(question.qtype().unwrap(), 1);
+        assert_eq!(question.qclass().unwrap(), 1);
 
         assert_eq!(rrs.0[0].name, ["www", "imateapot", "org"]);
         assert_eq!(rrs.0[0].get_type(), ResourceRecordType::CName);
@@ -402,31 +445,31 @@ mod tests {
         let question = answer.question().expect("couldn't parse questions");
         let rrs = answer.resource_records().expect("couldn't parse RRs");
 
-        assert_eq!(answer.id(), answer.id());
-        assert_eq!(answer.qr(), true);
-        assert_eq!(answer.opcode(), OpCode::QUERY);
-        assert_eq!(answer.aa(), false);
-        assert_eq!(answer.tc(), false);
-        assert_eq!(answer.rd(), true);
-        assert_eq!(answer.ra(), false);
-        assert_eq!(answer.z(), false);
-        assert_eq!(answer.ad(), false);
-        assert_eq!(answer.cd(), false);
-        assert_eq!(answer.rcode(), RCode::NoError);
-        assert_eq!(answer.qdcount(), Some(1));
-        assert_eq!(answer.ancount(), Some(1));
-        assert_eq!(answer.nscount(), Some(0));
-        assert_eq!(answer.arcount(), Some(1));
+        assert_eq!(answer.id().unwrap(), message.id().unwrap());
+        assert_eq!(answer.qr().unwrap(), true);
+        assert_eq!(answer.opcode().unwrap(), OpCode::QUERY);
+        assert_eq!(answer.aa().unwrap(), false);
+        assert_eq!(answer.tc().unwrap(), false);
+        assert_eq!(answer.rd().unwrap(), true);
+        assert_eq!(answer.ra().unwrap(), false);
+        assert_eq!(answer.z().unwrap(), false);
+        assert_eq!(answer.ad().unwrap(), false);
+        assert_eq!(answer.cd().unwrap(), false);
+        assert_eq!(answer.rcode().unwrap(), RCode::NoError);
+        assert_eq!(answer.qdcount().unwrap(), 1);
+        assert_eq!(answer.ancount().unwrap(), 1);
+        assert_eq!(answer.nscount().unwrap(), 0);
+        assert_eq!(answer.arcount().unwrap(), 1);
         assert_eq!(
-            question.qname(),
-            Some(vec![
+            question.qname().unwrap(),
+            vec![
                 String::from("www"),
                 String::from("imateapot"),
                 String::from("org")
-            ])
+            ]
         );
-        assert_eq!(question.qtype(), Some(1));
-        assert_eq!(question.qclass(), Some(1));
+        assert_eq!(question.qtype().unwrap(), 1);
+        assert_eq!(question.qclass().unwrap(), 1);
 
         assert_eq!(rrs.0[0].name, ["www", "imateapot", "org"]);
         assert_eq!(rrs.0[0].get_type(), ResourceRecordType::A);
@@ -444,7 +487,9 @@ mod tests {
 
         assert_ne!(rrs0.0[0].ttl, 42);
 
-        message.set_response_ttl(42);
+        if message.set_response_ttl(42).is_err() {
+            panic!("failed to set ttl");
+        }
         let rrs1 = message.resource_records().expect("couldn't parse RRs");
         assert_eq!(rrs1.0[0].ttl, 42);
     }

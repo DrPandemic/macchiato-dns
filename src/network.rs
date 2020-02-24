@@ -118,7 +118,7 @@ pub fn spawn_remote_dns_query(
             }
             (false, cached)
         } else if filter_query(filter, &query, verbosity) {
-            if let Some(response) = generate_deny_response(&query) {
+            if let Ok(response) = generate_deny_response(&query) {
                 (false, response)
             } else {
                 return;
@@ -148,9 +148,9 @@ pub fn spawn_remote_dns_query(
 }
 
 fn filter_query(filter: Arc<Mutex<Filter>>, query: &Message, verbosity: u8) -> bool {
-    if let Some(question) = query.question() {
+    if let Ok(question) = query.question() {
         let qname = question.qname();
-        if qname.is_none() {
+        if qname.is_err() {
             return true;
         }
         let name = qname.unwrap().join(".");

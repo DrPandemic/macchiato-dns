@@ -1,4 +1,5 @@
 use crate::helpers::*;
+use std::error::Error;
 
 // https://tools.ietf.org/html/rfc6891#section-6.1.2
 // RRs with type Opt(41), are not parsed the same. It's the same format, but different names.
@@ -23,11 +24,11 @@ impl ResourceRecord {
         if self.type_code != 1 || self.rdlength != 4 {
             None
         } else {
-            Some(parse_u32(&self.rdata, 0)?)
+            Some(parse_u32(&self.rdata, 0).ok()?)
         }
     }
 
-    pub fn get_buffer(&self) -> Option<Vec<u8>> {
+    pub fn get_buffer(&self) -> Result<Vec<u8>, Box<dyn Error>> {
         let mut buffer = vec![];
 
         let mut name = encode_name(self.name.clone());
@@ -42,7 +43,7 @@ impl ResourceRecord {
         buffer.append(&mut rdlength.to_vec());
         buffer.append(&mut self.rdata.clone());
 
-        Some(buffer)
+        Ok(buffer)
     }
 }
 
