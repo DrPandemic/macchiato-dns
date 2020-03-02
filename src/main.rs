@@ -21,6 +21,7 @@ pub mod network;
 pub mod question;
 pub mod resource_record;
 pub mod responder;
+pub mod tree;
 use crate::cache::*;
 use crate::cli::*;
 use crate::filter::*;
