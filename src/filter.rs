@@ -1,5 +1,5 @@
 use crate::cli::*;
-use cuckoofilter::*;
+use crate::tree::*;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufRead};
@@ -9,32 +9,24 @@ pub enum FilterVersion {
     None,
     Blu,
     Ultimate,
+    Test,
 }
 
+#[derive(Clone)]
 pub enum FilterFormat {
     Vector,
     Hash,
-    Bloom,
-    Xor,
-    Cuckoo,
+    Tree,
 }
 
 pub struct Filter {
     pub format: FilterFormat,
     pub vector: Option<Vec<String>>,
     pub hash: Option<HashSet<String>>,
-    pub cuckoo: Option<CuckooFilter<std::collections::hash_map::DefaultHasher>>,
+    pub tree: Option<Tree>,
 }
 
 impl Filter {
-    // fn get_url(version: FilterVersion) -> Option<String> {
-    //     match version {
-    //         FilterVersion::Blugo => Some(String::from("https://block.energized.pro/bluGo/formats/domains.txt")),
-    //         FilterVersion::Ultimate => Some(String::from("https://block.energized.pro/ultimate/formats/domains.txt")),
-    //         FilterVersion::None => None
-    //     }
-    // }
-
     pub fn from_opt(opt: &Opt) -> Filter {
         let filter_version = match &opt.filter_list[..] {
             "none" => FilterVersion::None,
@@ -45,7 +37,7 @@ impl Filter {
         let filter_format = if opt.small {
             FilterFormat::Vector
         } else {
-            FilterFormat::Hash
+            FilterFormat::Tree
         };
         let filters_path = opt.filters_path.clone().unwrap_or(PathBuf::from("./"));
 
@@ -57,16 +49,8 @@ impl Filter {
         match version {
             FilterVersion::Blu => Some(String::from("blu.txt")),
             FilterVersion::Ultimate => Some(String::from("ultimate.txt")),
+            FilterVersion::Test => Some(String::from("test_filter.txt")),
             FilterVersion::None => None,
-        }
-    }
-
-    pub fn from_download(_version: FilterVersion, _format: FilterFormat) -> Filter {
-        Filter {
-            format: FilterFormat::Vector,
-            vector: Some(vec![]),
-            hash: None,
-            cuckoo: None,
         }
     }
 
@@ -101,7 +85,7 @@ impl Filter {
                 format: format,
                 vector: Some(lines),
                 hash: None,
-                cuckoo: None,
+                tree: None,
             }),
             FilterFormat::Hash => {
                 let mut hash = HashSet::new();
@@ -112,34 +96,83 @@ impl Filter {
                     format: format,
                     vector: None,
                     hash: Some(hash),
-                    cuckoo: None,
+                    tree: None,
                 })
             }
-            FilterFormat::Cuckoo => {
-                let mut filter = CuckooFilter::new();
-                for line in lines.clone() {
-                    filter.add(&line);
+            FilterFormat::Tree => {
+                let mut tree = Tree::new();
+                for line in lines {
+                    tree.insert(&line);
                 }
                 Ok(Filter {
                     format: format,
-                    vector: Some(lines),
+                    vector: None,
                     hash: None,
-                    cuckoo: Some(filter),
+                    tree: Some(tree),
                 })
             }
-            _ => panic!(),
         }
     }
 
     pub fn is_filtered(&self, name: &String) -> bool {
         match self.format {
-            FilterFormat::Vector => self.vector.as_ref().unwrap().binary_search(name).is_ok(),
-            FilterFormat::Hash => self.hash.as_ref().unwrap().contains(name),
-            FilterFormat::Cuckoo => {
-                !(!self.cuckoo.as_ref().unwrap().contains(name)
-                    && !self.vector.as_ref().unwrap().binary_search(name).is_ok())
+            FilterFormat::Vector => {
+                let vector = self.vector.as_ref().unwrap();
+                let parts = name.split(".").collect::<Vec<&str>>();
+                (0..parts.len())
+                    .find(|i| {
+                        let name = parts.get(*i..parts.len()).unwrap().join(".");
+                        vector.binary_search(&name).is_ok()
+                    })
+                    .is_some()
             }
-            _ => false,
+            FilterFormat::Hash => {
+                let hash = self.hash.as_ref().unwrap();
+
+                let parts = name.split(".").collect::<Vec<&str>>();
+                (0..parts.len())
+                    .find(|i| {
+                        let name = parts.get(*i..parts.len()).unwrap().join(".");
+                        hash.get(&name).is_some()
+                    })
+                    .is_some()
+            }
+            FilterFormat::Tree => self.tree.as_ref().unwrap().contains(name),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn filter_all_types() {
+        vec![FilterFormat::Vector, FilterFormat::Hash, FilterFormat::Tree]
+            .iter()
+            .for_each(move |format| {
+                let filter =
+                    Filter::from_disk(FilterVersion::Test, format.clone(), PathBuf::from("./"))
+                        .expect("Couldn't load filter");
+
+                assert_eq!(true, filter.is_filtered(&String::from("imateapot.org")));
+                assert_eq!(true, filter.is_filtered(&String::from("www.imateapot.org")));
+                assert_eq!(
+                    true,
+                    filter.is_filtered(&String::from("m.www.imateapot.org"))
+                );
+                assert_eq!(false, filter.is_filtered(&String::from("imateapot.ca")));
+                assert_eq!(
+                    true,
+                    filter.is_filtered(&String::from("www.imateapot.info"))
+                );
+                assert_eq!(
+                    true,
+                    filter.is_filtered(&String::from("m.www.imateapot.info"))
+                );
+                assert_eq!(false, filter.is_filtered(&String::from("imateapot.info")));
+                assert_eq!(false, filter.is_filtered(&String::from("org")));
+                assert_eq!(false, filter.is_filtered(&String::from("com")));
+            });
     }
 }

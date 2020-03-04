@@ -1,4 +1,3 @@
-extern crate cuckoofilter;
 extern crate lru;
 extern crate nix;
 extern crate reqwest;
