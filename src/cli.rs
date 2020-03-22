@@ -24,4 +24,8 @@ pub struct Opt {
     /// Directory containing filter lists
     #[structopt(long, parse(from_os_str))]
     pub filters_path: Option<PathBuf>,
+
+    /// List of whitelisted domains
+    #[structopt(short, long)]
+    pub whitelist: Option<Vec<String>>,
 }

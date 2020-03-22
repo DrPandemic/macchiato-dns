@@ -32,6 +32,7 @@ impl Filter {
             "none" => FilterVersion::None,
             "blu" => FilterVersion::Blu,
             "ultimate" => FilterVersion::Ultimate,
+            "test" => FilterVersion::Test,
             _ => panic!("Filter list is not valid"),
         };
         let filter_format = if opt.small {
@@ -40,8 +41,9 @@ impl Filter {
             FilterFormat::Tree
         };
         let filters_path = opt.filters_path.clone().unwrap_or(PathBuf::from("./"));
+        let whitelist = opt.whitelist.clone().unwrap_or(vec![]);
 
-        Filter::from_disk(filter_version, filter_format, filters_path)
+        Filter::from_disk(filter_version, filter_format, filters_path, whitelist)
             .expect("Couldn't load filter")
     }
 
@@ -58,6 +60,7 @@ impl Filter {
         version: FilterVersion,
         format: FilterFormat,
         path: PathBuf,
+        whitelist: Vec<String>,
     ) -> Result<Filter, std::io::Error> {
         let lines = if let Some(file_name) = Filter::get_file_name(version) {
             let file = File::open(path.join(file_name))?;
@@ -66,6 +69,8 @@ impl Filter {
                 .filter_map(|maybe_line| match maybe_line {
                     Ok(line) => {
                         if line.starts_with("#") {
+                            None
+                        } else if whitelist.contains(&line) {
                             None
                         } else {
                             Some(line)
@@ -151,9 +156,13 @@ mod tests {
         vec![FilterFormat::Vector, FilterFormat::Hash, FilterFormat::Tree]
             .iter()
             .for_each(move |format| {
-                let filter =
-                    Filter::from_disk(FilterVersion::Test, format.clone(), PathBuf::from("./"))
-                        .expect("Couldn't load filter");
+                let filter = Filter::from_disk(
+                    FilterVersion::Test,
+                    format.clone(),
+                    PathBuf::from("./"),
+                    vec![],
+                )
+                .expect("Couldn't load filter");
 
                 assert_eq!(true, filter.is_filtered(&String::from("imateapot.org")));
                 assert_eq!(true, filter.is_filtered(&String::from("www.imateapot.org")));
@@ -173,6 +182,23 @@ mod tests {
                 assert_eq!(false, filter.is_filtered(&String::from("imateapot.info")));
                 assert_eq!(false, filter.is_filtered(&String::from("org")));
                 assert_eq!(false, filter.is_filtered(&String::from("com")));
+            });
+    }
+
+    #[test]
+    fn whitelist() {
+        vec![FilterFormat::Vector, FilterFormat::Hash, FilterFormat::Tree]
+            .iter()
+            .for_each(move |format| {
+                let filter = Filter::from_disk(
+                    FilterVersion::Test,
+                    format.clone(),
+                    PathBuf::from("./"),
+                    vec![String::from("imateapot.org")],
+                )
+                .expect("Couldn't load filter");
+
+                assert_eq!(false, filter.is_filtered(&String::from("imateapot.org")));
             });
     }
 }
