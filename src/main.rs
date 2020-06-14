@@ -30,6 +30,7 @@ use crate::network::*;
 use crate::responder::*;
 
 const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:53";
+const DEFAULT_EXTERNAL_ADDRESS: &str = "0.0.0.0:53";
 const DEFAULT_INTERNAL_ADDRESS_DEBUG: &str = "127.0.0.1:5553";
 
 #[tokio::main]
@@ -41,6 +42,8 @@ async fn main() {
     let cache = Arc::new(Mutex::new(Cache::new()));
     let socket = UdpSocket::bind(if opt.debug {
         DEFAULT_INTERNAL_ADDRESS_DEBUG
+    } else if opt.external {
+        DEFAULT_EXTERNAL_ADDRESS
     } else {
         DEFAULT_INTERNAL_ADDRESS
     })

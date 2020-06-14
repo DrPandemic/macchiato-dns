@@ -28,4 +28,8 @@ pub struct Opt {
     /// List of whitelisted domains
     #[structopt(short, long)]
     pub whitelist: Option<Vec<String>>,
+
+    /// Bind on an externally accessible address
+    #[structopt(short)]
+    pub external: bool,
 }

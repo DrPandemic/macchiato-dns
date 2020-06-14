@@ -13,4 +13,4 @@ COPY . /app
 RUN cargo build --release
 
 EXPOSE 53/udp
-ENTRYPOINT ["./target/release/dns", "-s"]
+ENTRYPOINT ["./target/release/dns"]

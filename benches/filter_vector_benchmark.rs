@@ -21,7 +21,7 @@ fn bench(
     format: FilterFormat,
     name: &str,
 ) {
-    let filter = Filter::from_disk(FilterVersion::Ultimate, format, PathBuf::from("./"))
+    let filter = Filter::from_disk(FilterVersion::Ultimate, format, PathBuf::from("./"), vec![])
         .expect("Couldn't load filter");
     group.bench_function(format!("not in {}", name), |b| {
         b.iter(|| filter.is_filtered(black_box(&String::from("notblacklisted.com"))))
