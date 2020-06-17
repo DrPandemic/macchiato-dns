@@ -7,7 +7,7 @@ use crate::helpers::*;
 use crate::question::*;
 use crate::resource_record::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Message {
     pub buffer: Vec<u8>,
 }

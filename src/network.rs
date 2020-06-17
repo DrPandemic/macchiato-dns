@@ -39,6 +39,7 @@ pub async fn receive_local_request(
     Ok((message, src))
 }
 
+#[allow(dead_code)]
 pub fn find_private_ipv4_address() -> Option<Ipv4Addr> {
     nix::ifaddrs::getifaddrs()
         .and_then(|addrs| {
@@ -59,6 +60,7 @@ pub fn find_private_ipv4_address() -> Option<Ipv4Addr> {
         .unwrap_or(None)
 }
 
+#[allow(dead_code)]
 pub async fn query_remote_dns_server_udp(
     local_address: Ipv4Addr,
     remote_address: &SocketAddr,

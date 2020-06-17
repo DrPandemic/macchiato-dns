@@ -23,10 +23,12 @@ impl<'a> Question<'a> {
         )?)
     }
 
+    #[allow(dead_code)]
     pub fn get_type(&self) -> Result<ResourceRecordType, Box<dyn Error>> {
         Ok(parse_type_code(self.qtype()?))
     }
 
+    #[allow(dead_code)]
     pub fn qclass(&self) -> Result<u16, Box<dyn Error>> {
         Ok(parse_u16(
             &self
