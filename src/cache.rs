@@ -1,10 +1,50 @@
 use crate::message::*;
+
+use core::result::Result;
 use lru::LruCache;
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::cmp::Ordering;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub struct Cache {
     pub data: LruCache<(String, u16), (SystemTime, Message)>,
+}
+
+#[derive(serde::Serialize)]
+pub struct SerializableCacheEntry {
+    pub valid_until: u64,
+    pub message: Message,
+}
+
+#[derive(serde::Serialize)]
+pub struct SerializableCache {
+    pub data: Vec<SerializableCacheEntry>,
+}
+
+impl SerializableCache {
+    fn from_cache(cache: &Cache) -> SerializableCache {
+        let mut data: Vec<SerializableCacheEntry> = vec![];
+        for (_, v) in cache.data.iter() {
+            data.push(SerializableCacheEntry {
+                valid_until: v.0.duration_since(UNIX_EPOCH).expect("Time before EPOCH").as_secs(),
+                message: v.1.clone(),
+            });
+        }
+        SerializableCache { data: data }
+    }
+}
+
+impl Serialize for Cache {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Cache", 3)?;
+        state.serialize_field("capacity", &self.data.cap())?;
+        state.serialize_field("length", &self.data.len())?;
+        state.serialize_field("data", &SerializableCache::from_cache(&self))?;
+        state.end()
+    }
 }
 
 impl Cache {
@@ -12,6 +52,10 @@ impl Cache {
         Cache {
             data: LruCache::new(500),
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.len()
     }
 
     pub fn get(&mut self, query: &Message) -> Option<Message> {
@@ -38,9 +82,7 @@ impl Cache {
     }
 
     pub fn put(&mut self, message: &Message) -> Option<()> {
-        if let (Ok((responses, _, _)), Ok(question)) =
-            (message.resource_records(), message.question())
-        {
+        if let (Ok((responses, _, _)), Ok(question)) = (message.resource_records(), message.question()) {
             if responses.len() > 0 {
                 let ttl = SystemTime::now()
                     .checked_add(Duration::from_secs(responses[0].ttl as u64))
@@ -63,16 +105,15 @@ mod tests {
     use std::{thread, time};
 
     const IMATEAPOT_QUESTION: [u8; 46] = [
-        57, 32, 1, 32, 0, 1, 0, 0, 0, 0, 0, 1, 3, 119, 119, 119, 9, 105, 109, 97, 116, 101, 97,
-        112, 111, 116, 3, 111, 114, 103, 0, 0, 1, 0, 1, 0, 0, 41, 16, 0, 0, 0, 0, 0, 0, 0,
+        57, 32, 1, 32, 0, 1, 0, 0, 0, 0, 0, 1, 3, 119, 119, 119, 9, 105, 109, 97, 116, 101, 97, 112, 111, 116, 3, 111,
+        114, 103, 0, 0, 1, 0, 1, 0, 0, 41, 16, 0, 0, 0, 0, 0, 0, 0,
     ];
 
     const IMATEAPOT_ANSWER: [u8; 95] = [
-        57, 32, 129, 128, 0, 1, 0, 2, 0, 0, 0, 1, 3, 119, 119, 119, 9, 105, 109, 97, 116, 101, 97,
-        112, 111, 116, 3, 111, 114, 103, 0, 0, 1, 0, 1, 192, 12, 0, 5, 0, 1, 0, 0, 84, 64, 0, 21,
-        5, 115, 104, 111, 112, 115, 9, 109, 121, 115, 104, 111, 112, 105, 102, 121, 3, 99, 111,
-        109, 0, 192, 47, 0, 1, 0, 1, 0, 0, 5, 23, 0, 4, 23, 227, 38, 64, 0, 0, 41, 2, 0, 0, 0, 0,
-        0, 0, 0,
+        57, 32, 129, 128, 0, 1, 0, 2, 0, 0, 0, 1, 3, 119, 119, 119, 9, 105, 109, 97, 116, 101, 97, 112, 111, 116, 3,
+        111, 114, 103, 0, 0, 1, 0, 1, 192, 12, 0, 5, 0, 1, 0, 0, 84, 64, 0, 21, 5, 115, 104, 111, 112, 115, 9, 109,
+        121, 115, 104, 111, 112, 105, 102, 121, 3, 99, 111, 109, 0, 192, 47, 0, 1, 0, 1, 0, 0, 5, 23, 0, 4, 23, 227,
+        38, 64, 0, 0, 41, 2, 0, 0, 0, 0, 0, 0, 0,
     ];
 
     #[test]

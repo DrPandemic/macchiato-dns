@@ -1,4 +1,5 @@
 use crate::helpers::*;
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::error::Error;
 
 // https://tools.ietf.org/html/rfc6891#section-6.1.2
@@ -13,6 +14,31 @@ pub struct ResourceRecord {
     pub rdlength: u16,
     pub rdata: Vec<u8>,
     pub size: usize,
+}
+
+impl Serialize for ResourceRecord {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("ResourceRecord", 7)?;
+        state.serialize_field("name", &self.name)?;
+        state.serialize_field("type_code", &self.type_code)?;
+        state.serialize_field("class", &self.class)?;
+        state.serialize_field("ttl", &self.ttl)?;
+        state.serialize_field("rdlength", &self.rdlength)?;
+        state.serialize_field(
+            "rdata",
+            &self
+                .rdata
+                .iter()
+                .map(|n| format!("{}", n))
+                .collect::<Vec<String>>()
+                .join("."),
+        )?;
+        state.serialize_field("size", &self.size)?;
+        state.end()
+    }
 }
 
 impl ResourceRecord {

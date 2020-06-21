@@ -39,7 +39,6 @@ pub async fn receive_local_request(
     Ok((message, src))
 }
 
-#[allow(dead_code)]
 pub fn find_private_ipv4_address() -> Option<Ipv4Addr> {
     nix::ifaddrs::getifaddrs()
         .and_then(|addrs| {
@@ -60,7 +59,6 @@ pub fn find_private_ipv4_address() -> Option<Ipv4Addr> {
         .unwrap_or(None)
 }
 
-#[allow(dead_code)]
 pub async fn query_remote_dns_server_udp(
     local_address: Ipv4Addr,
     remote_address: &SocketAddr,
@@ -126,7 +124,6 @@ pub fn spawn_remote_dns_query(
                 return;
             }
         } else {
-            // query_remote_dns_server_udp(local_address, DEFAULT_DNS_RESOLVER, query).await
             instrumentation.set_request_sent();
             if let Ok(result) = query_remote_dns_server_doh(DEFAULT_DOH_DNS_RESOLVER, query).await {
                 instrumentation.set_request_received();

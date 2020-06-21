@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 extern crate lru;
 extern crate nix;
 extern crate reqwest;
@@ -12,6 +13,7 @@ use tokio::net::UdpSocket;
 
 mod cache;
 mod cli;
+mod dns_actors;
 mod filter;
 mod helpers;
 mod instrumentation;
@@ -19,15 +21,15 @@ mod message;
 mod network;
 mod question;
 mod resource_record;
-mod responder;
 mod tree;
+mod web;
 use crate::cache::*;
 use crate::cli::*;
+use crate::dns_actors::*;
 use crate::filter::*;
 use crate::instrumentation::*;
 use crate::message::*;
-use crate::network::*;
-use crate::responder::*;
+use crate::web::*;
 
 const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:53";
 const DEFAULT_EXTERNAL_ADDRESS: &str = "0.0.0.0:53";
@@ -40,6 +42,7 @@ async fn main() {
 
     let filter = Arc::new(Mutex::new(Filter::from_opt(&opt)));
     let cache = Arc::new(Mutex::new(Cache::new()));
+
     let socket = UdpSocket::bind(if opt.debug {
         DEFAULT_INTERNAL_ADDRESS_DEBUG
     } else if opt.external {
@@ -49,25 +52,17 @@ async fn main() {
     })
     .await
     .expect("tried to bind an UDP port");
-    let (mut receiving, sending) = socket.split();
+    let (receiving, sending) = socket.split();
     // TODO: Considere using https://docs.rs/async-std/1.3.0/async_std/sync/fn.channel.html
     let (response_sender, response_receiver) = channel::<(SocketAddr, Instrumentation, Message)>();
 
     spawn_responder(sending, response_receiver, verbosity);
-
-    loop {
-        let (query, src) = match receive_local_request(&mut receiving, verbosity).await {
-            Ok(result) => result,
-            _ => continue,
-        };
-        spawn_remote_dns_query(
-            Arc::clone(&filter),
-            Arc::clone(&cache),
-            query,
-            src,
-            verbosity,
-            Instrumentation::new(),
-            response_sender.clone(),
-        );
-    }
+    spawn_listener(
+        receiving,
+        response_sender,
+        Arc::clone(&filter),
+        Arc::clone(&cache),
+        verbosity,
+    );
+    start_web(&opt, filter, cache).await.unwrap();
 }

@@ -41,9 +41,9 @@ impl Filter {
             FilterFormat::Tree
         };
         let filters_path = opt.filters_path.clone().unwrap_or(PathBuf::from("./"));
-        let whitelist = opt.whitelist.clone().unwrap_or(vec![]);
+        let allowed = opt.allowed.clone().unwrap_or(vec![]);
 
-        Filter::from_disk(filter_version, filter_format, filters_path, whitelist)
+        Filter::from_disk(filter_version, filter_format, filters_path, allowed)
             .expect("Couldn't load filter")
     }
 
@@ -60,7 +60,7 @@ impl Filter {
         version: FilterVersion,
         format: FilterFormat,
         path: PathBuf,
-        whitelist: Vec<String>,
+        allowed: Vec<String>,
     ) -> Result<Filter, std::io::Error> {
         let lines = if let Some(file_name) = Filter::get_file_name(version) {
             let file = File::open(path.join(file_name))?;
@@ -70,7 +70,7 @@ impl Filter {
                     Ok(line) => {
                         if line.starts_with("#") {
                             None
-                        } else if whitelist.contains(&line) {
+                        } else if allowed.contains(&line) {
                             None
                         } else {
                             Some(line)
@@ -186,7 +186,7 @@ mod tests {
     }
 
     #[test]
-    fn whitelist() {
+    fn allowed() {
         vec![FilterFormat::Vector, FilterFormat::Hash, FilterFormat::Tree]
             .iter()
             .for_each(move |format| {

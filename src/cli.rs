@@ -25,9 +25,9 @@ pub struct Opt {
     #[structopt(long, parse(from_os_str))]
     pub filters_path: Option<PathBuf>,
 
-    /// List of whitelisted domains
+    /// List of allowed domains that bypass filter
     #[structopt(short, long)]
-    pub whitelist: Option<Vec<String>>,
+    pub allowed: Option<Vec<String>>,
 
     /// Bind on an externally accessible address
     #[structopt(short)]

@@ -38,27 +38,23 @@ pub fn split_u32_into_u8(data: u32) -> Result<[u8; 4], Box<dyn Error>> {
 }
 
 pub fn parse_u16(buffer: &[u8], position: usize) -> Result<u16, Box<dyn Error>> {
-    Ok(
-        (u16::from(*buffer.get(position).ok_or(DataTransformationError)?)
-            .checked_shl(8)
-            .ok_or(DataTransformationError)?)
-            | u16::from(*buffer.get(position + 1).ok_or(DataTransformationError)?),
-    )
+    Ok((u16::from(*buffer.get(position).ok_or(DataTransformationError)?)
+        .checked_shl(8)
+        .ok_or(DataTransformationError)?)
+        | u16::from(*buffer.get(position + 1).ok_or(DataTransformationError)?))
 }
 
 pub fn parse_u32(buffer: &[u8], position: usize) -> Result<u32, Box<dyn Error>> {
-    Ok(
-        (u32::from(*buffer.get(position).ok_or(DataTransformationError)?)
-            .checked_shl(24)
+    Ok((u32::from(*buffer.get(position).ok_or(DataTransformationError)?)
+        .checked_shl(24)
+        .ok_or(DataTransformationError)?)
+        | (u32::from(*buffer.get(position + 1).ok_or(DataTransformationError)?)
+            .checked_shl(16)
             .ok_or(DataTransformationError)?)
-            | (u32::from(*buffer.get(position + 1).ok_or(DataTransformationError)?)
-                .checked_shl(16)
-                .ok_or(DataTransformationError)?)
-            | (u32::from(*buffer.get(position + 2).ok_or(DataTransformationError)?)
-                .checked_shl(8)
-                .ok_or(DataTransformationError)?)
-            | u32::from(*buffer.get(position + 3).ok_or(DataTransformationError)?),
-    )
+        | (u32::from(*buffer.get(position + 2).ok_or(DataTransformationError)?)
+            .checked_shl(8)
+            .ok_or(DataTransformationError)?)
+        | u32::from(*buffer.get(position + 3).ok_or(DataTransformationError)?))
 }
 
 pub fn parse_name(buffer: &[u8], offset: usize) -> Result<(Vec<String>, usize), Box<dyn Error>> {
@@ -93,9 +89,7 @@ pub fn parse_name(buffer: &[u8], offset: usize) -> Result<(Vec<String>, usize), 
 pub fn encode_name(name: Vec<String>) -> Vec<u8> {
     let mut buffer = name.into_iter().fold(vec![], |mut acc, part| {
         acc.push(part.len() as u8);
-        part.into_bytes()
-            .into_iter()
-            .for_each(|byte| acc.push(byte));
+        part.into_bytes().into_iter().for_each(|byte| acc.push(byte));
         acc
     });
 
@@ -113,7 +107,7 @@ pub fn parse_type_code(code: u16) -> ResourceRecordType {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, serde::Serialize)]
 pub enum ResourceRecordType {
     A,
     CName,
