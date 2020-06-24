@@ -15,6 +15,7 @@ mod cache;
 mod cli;
 mod dns_actors;
 mod filter;
+mod filter_statistics;
 mod helpers;
 mod instrumentation;
 mod message;

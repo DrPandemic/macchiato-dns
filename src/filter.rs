@@ -1,4 +1,5 @@
 use crate::cli::*;
+use crate::filter_statistics::*;
 use crate::tree::*;
 use std::collections::HashSet;
 use std::fs::File;
@@ -24,6 +25,7 @@ pub struct Filter {
     pub vector: Option<Vec<String>>,
     pub hash: Option<HashSet<String>>,
     pub tree: Option<Tree>,
+    pub statistics: FilterStatistics,
 }
 
 impl Filter {
@@ -43,8 +45,7 @@ impl Filter {
         let filters_path = opt.filters_path.clone().unwrap_or(PathBuf::from("./"));
         let allowed = opt.allowed.clone().unwrap_or(vec![]);
 
-        Filter::from_disk(filter_version, filter_format, filters_path, allowed)
-            .expect("Couldn't load filter")
+        Filter::from_disk(filter_version, filter_format, filters_path, allowed).expect("Couldn't load filter")
     }
 
     fn get_file_name(version: FilterVersion) -> Option<String> {
@@ -91,6 +92,7 @@ impl Filter {
                 vector: Some(lines),
                 hash: None,
                 tree: None,
+                statistics: FilterStatistics::new(),
             }),
             FilterFormat::Hash => {
                 let mut hash = HashSet::new();
@@ -102,6 +104,7 @@ impl Filter {
                     vector: None,
                     hash: Some(hash),
                     tree: None,
+                    statistics: FilterStatistics::new(),
                 })
             }
             FilterFormat::Tree => {
@@ -114,13 +117,14 @@ impl Filter {
                     vector: None,
                     hash: None,
                     tree: Some(tree),
+                    statistics: FilterStatistics::new(),
                 })
             }
         }
     }
 
-    pub fn is_filtered(&self, name: &String) -> bool {
-        match self.format {
+    pub fn is_filtered(&mut self, name: &String) -> bool {
+        let result = match self.format {
             FilterFormat::Vector => {
                 let vector = self.vector.as_ref().unwrap();
                 let parts = name.split(".").collect::<Vec<&str>>();
@@ -143,7 +147,13 @@ impl Filter {
                     .is_some()
             }
             FilterFormat::Tree => self.tree.as_ref().unwrap().contains(name),
+        };
+
+        if result {
+            self.statistics.increment(&name);
         }
+
+        result
     }
 }
 
@@ -156,29 +166,15 @@ mod tests {
         vec![FilterFormat::Vector, FilterFormat::Hash, FilterFormat::Tree]
             .iter()
             .for_each(move |format| {
-                let filter = Filter::from_disk(
-                    FilterVersion::Test,
-                    format.clone(),
-                    PathBuf::from("./"),
-                    vec![],
-                )
-                .expect("Couldn't load filter");
+                let filter = Filter::from_disk(FilterVersion::Test, format.clone(), PathBuf::from("./"), vec![])
+                    .expect("Couldn't load filter");
 
                 assert_eq!(true, filter.is_filtered(&String::from("imateapot.org")));
                 assert_eq!(true, filter.is_filtered(&String::from("www.imateapot.org")));
-                assert_eq!(
-                    true,
-                    filter.is_filtered(&String::from("m.www.imateapot.org"))
-                );
+                assert_eq!(true, filter.is_filtered(&String::from("m.www.imateapot.org")));
                 assert_eq!(false, filter.is_filtered(&String::from("imateapot.ca")));
-                assert_eq!(
-                    true,
-                    filter.is_filtered(&String::from("www.imateapot.info"))
-                );
-                assert_eq!(
-                    true,
-                    filter.is_filtered(&String::from("m.www.imateapot.info"))
-                );
+                assert_eq!(true, filter.is_filtered(&String::from("www.imateapot.info")));
+                assert_eq!(true, filter.is_filtered(&String::from("m.www.imateapot.info")));
                 assert_eq!(false, filter.is_filtered(&String::from("imateapot.info")));
                 assert_eq!(false, filter.is_filtered(&String::from("org")));
                 assert_eq!(false, filter.is_filtered(&String::from("com")));

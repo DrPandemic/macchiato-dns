@@ -2,6 +2,7 @@ pub mod cache;
 pub mod cli;
 pub mod dns_actors;
 pub mod filter;
+pub mod filter_statistics;
 pub mod helpers;
 pub mod instrumentation;
 pub mod message;

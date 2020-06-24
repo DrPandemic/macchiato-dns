@@ -19,7 +19,14 @@ async fn get_cache(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
     let cache = data.cache.lock().unwrap();
     let body = serde_json::to_string(&(*cache)).unwrap();
 
-    // Create response and set content type
+    Ok(HttpResponse::Ok().content_type("application/json").body(body))
+}
+
+#[get("/filter-statistics")]
+async fn get_filter_statistics(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
+    let filter = data.filter.lock().unwrap();
+    let body = serde_json::to_string(&filter.statistics).unwrap();
+
     Ok(HttpResponse::Ok().content_type("application/json").body(body))
 }
 
@@ -39,10 +46,15 @@ pub async fn start_web(opt: &Opt, filter: Arc<Mutex<Filter>>, cache: Arc<Mutex<C
 
     let local = tokio::task::LocalSet::new();
     let sys = actix_rt::System::run_in_tokio("server", &local);
-    HttpServer::new(move || App::new().app_data(state.clone()).service(get_cache))
-        .bind(address)?
-        .run()
-        .await?;
+    HttpServer::new(move || {
+        App::new()
+            .app_data(state.clone())
+            .service(get_cache)
+            .service(get_filter_statistics)
+    })
+    .bind(address)?
+    .run()
+    .await?;
     sys.await?;
     Ok(())
 }

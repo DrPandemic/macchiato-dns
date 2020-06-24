@@ -13,9 +13,7 @@ use tokio::net::UdpSocket;
 const MAX_DATAGRAM_SIZE: usize = 512;
 const DEFAULT_DOH_DNS_RESOLVER: &str = "https://1.1.1.1/dns-query";
 
-pub async fn recv_datagram(
-    socket: &mut RecvHalf,
-) -> Result<(Vec<u8>, std::net::SocketAddr), Box<dyn Error>> {
+pub async fn recv_datagram(socket: &mut RecvHalf) -> Result<(Vec<u8>, std::net::SocketAddr), Box<dyn Error>> {
     let mut buf = [0; MAX_DATAGRAM_SIZE];
     let (amt, src) = socket.recv_from(&mut buf).await?;
     Ok((buf[..amt].to_vec(), src))
@@ -137,10 +135,7 @@ pub fn spawn_remote_dns_query(
             cache.lock().unwrap().put(&remote_answer);
         }
 
-        if response_sender
-            .send((src, instrumentation, remote_answer))
-            .is_err()
-        {
+        if response_sender.send((src, instrumentation, remote_answer)).is_err() {
             log_error("Failed to send a message on channel", verbosity);
         }
     });
@@ -156,7 +151,7 @@ fn filter_query(filter: Arc<Mutex<Filter>>, query: &Message, verbosity: u8) -> b
         if verbosity > 1 {
             println!("{}", name);
         }
-        let filter = filter.lock().unwrap();
+        let mut filter = filter.lock().unwrap();
         if filter.is_filtered(&name) {
             if verbosity > 0 {
                 println!("{:?} was filtered!", name);
