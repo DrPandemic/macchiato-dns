@@ -53,30 +53,35 @@ impl Tree {
         Tree { root: Node::new() }
     }
 
-    pub fn contains(&self, key: &String) -> bool {
-        Tree::split(key)
+    pub fn contains(&self, key: &String) -> Option<String> {
+        let mut rule: Vec<&str> = vec![];
+        let result = Tree::split(key)
             .into_iter()
-            .fold(
-                (Some(&self.root), Processing::Running),
-                |acc, key_part| match acc {
-                    (_, Processing::Success) => acc,
-                    (_, Processing::Failed) => acc,
-                    (Some(node), Processing::Running) => {
-                        if let Some(next) = node.children.get(key_part) {
-                            if next.children.len() == 0 {
-                                (None, Processing::Success)
-                            } else {
-                                (Some(next), Processing::Running)
-                            }
+            .fold((Some(&self.root), Processing::Running), |acc, key_part| match acc {
+                (_, Processing::Success) => acc,
+                (_, Processing::Failed) => acc,
+                (Some(node), Processing::Running) => {
+                    if let Some(next) = node.children.get(key_part) {
+                        rule.push(key_part);
+                        if next.children.len() == 0 {
+                            (None, Processing::Success)
                         } else {
-                            (None, Processing::Failed)
+                            (Some(next), Processing::Running)
                         }
+                    } else {
+                        (None, Processing::Failed)
                     }
-                    _ => (None, Processing::Failed),
-                },
-            )
-            .1
-            == Processing::Success
+                }
+                _ => (None, Processing::Failed),
+            })
+            .1;
+
+        if result == Processing::Success {
+            rule.reverse();
+            Some(rule.join("."))
+        } else {
+            None
+        }
     }
 
     pub fn insert(&mut self, key: &String) {
@@ -103,14 +108,29 @@ mod tests {
         tree.insert(&String::from("www.imateapot.org"));
         tree.insert(&String::from("www.imateapot.info"));
 
-        assert_eq!(true, tree.contains(&String::from("imateapot.org")));
-        assert_eq!(true, tree.contains(&String::from("www.imateapot.org")));
-        assert_eq!(true, tree.contains(&String::from("m.www.imateapot.org")));
-        assert_eq!(false, tree.contains(&String::from("imateapot.ca")));
-        assert_eq!(true, tree.contains(&String::from("www.imateapot.info")));
-        assert_eq!(true, tree.contains(&String::from("m.www.imateapot.info")));
-        assert_eq!(false, tree.contains(&String::from("imateapot.info")));
-        assert_eq!(false, tree.contains(&String::from("org")));
-        assert_eq!(false, tree.contains(&String::from("com")));
+        assert_eq!(
+            Some(String::from("imateapot.org")),
+            tree.contains(&String::from("imateapot.org"))
+        );
+        assert_eq!(
+            Some(String::from("imateapot.org")),
+            tree.contains(&String::from("www.imateapot.org"))
+        );
+        assert_eq!(
+            Some(String::from("imateapot.org")),
+            tree.contains(&String::from("m.www.imateapot.org"))
+        );
+        assert_eq!(None, tree.contains(&String::from("imateapot.ca")));
+        assert_eq!(
+            Some(String::from("www.imateapot.info")),
+            tree.contains(&String::from("www.imateapot.info"))
+        );
+        assert_eq!(
+            Some(String::from("www.imateapot.info")),
+            tree.contains(&String::from("m.www.imateapot.info"))
+        );
+        assert_eq!(None, tree.contains(&String::from("imateapot.info")));
+        assert_eq!(None, tree.contains(&String::from("org")));
+        assert_eq!(None, tree.contains(&String::from("com")));
     }
 }

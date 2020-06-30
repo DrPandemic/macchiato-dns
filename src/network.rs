@@ -152,9 +152,9 @@ fn filter_query(filter: Arc<Mutex<Filter>>, query: &Message, verbosity: u8) -> b
             println!("{}", name);
         }
         let mut filter = filter.lock().unwrap();
-        if filter.is_filtered(&name) {
+        if let Some(filtered) = filter.filtered_by(&name) {
             if verbosity > 0 {
-                println!("{:?} was filtered!", name);
+                println!("{:?} was filtered by {:?}!", name, filtered);
             }
             true
         } else {

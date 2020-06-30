@@ -71,7 +71,12 @@ impl Filter {
                     Ok(line) => {
                         if line.starts_with("#") {
                             None
-                        } else if allowed.contains(&line) {
+                        } else if filtered_by(&line, |name| {
+                            let result = allowed.binary_search(name).ok();
+                            result.and_then(|i| allowed.get(i).map(|s| s.clone()))
+                        })
+                        .is_some()
+                        {
                             None
                         } else {
                             Some(line)
@@ -123,38 +128,39 @@ impl Filter {
         }
     }
 
-    pub fn is_filtered(&mut self, name: &String) -> bool {
+    pub fn filtered_by(&mut self, name: &String) -> Option<String> {
         let result = match self.format {
             FilterFormat::Vector => {
                 let vector = self.vector.as_ref().unwrap();
-                let parts = name.split(".").collect::<Vec<&str>>();
-                (0..parts.len())
-                    .find(|i| {
-                        let name = parts.get(*i..parts.len()).unwrap().join(".");
-                        vector.binary_search(&name).is_ok()
-                    })
-                    .is_some()
+
+                filtered_by(&name, |name| {
+                    let result = vector.binary_search(name).ok();
+                    result.and_then(|i| vector.get(i).map(|s| s.clone()))
+                })
             }
             FilterFormat::Hash => {
                 let hash = self.hash.as_ref().unwrap();
 
-                let parts = name.split(".").collect::<Vec<&str>>();
-                (0..parts.len())
-                    .find(|i| {
-                        let name = parts.get(*i..parts.len()).unwrap().join(".");
-                        hash.get(&name).is_some()
-                    })
-                    .is_some()
+                filtered_by(&name, |name| hash.get(name).map(|name| name.clone()))
             }
             FilterFormat::Tree => self.tree.as_ref().unwrap().contains(name),
         };
 
-        if result {
-            self.statistics.increment(&name);
+        if let Some(filtered) = result {
+            self.statistics.increment(&filtered);
+            Some(filtered)
+        } else {
+            None
         }
-
-        result
     }
+}
+
+fn filtered_by(name: &String, contains: impl Fn(&String) -> Option<String>) -> Option<String> {
+    let parts = name.split(".").collect::<Vec<&str>>();
+    (0..parts.len()).find_map(|i| {
+        let name = parts.get(i..parts.len()).unwrap().join(".");
+        contains(&name)
+    })
 }
 
 #[cfg(test)]
@@ -166,18 +172,33 @@ mod tests {
         vec![FilterFormat::Vector, FilterFormat::Hash, FilterFormat::Tree]
             .iter()
             .for_each(move |format| {
-                let filter = Filter::from_disk(FilterVersion::Test, format.clone(), PathBuf::from("./"), vec![])
+                let mut filter = Filter::from_disk(FilterVersion::Test, format.clone(), PathBuf::from("./"), vec![])
                     .expect("Couldn't load filter");
 
-                assert_eq!(true, filter.is_filtered(&String::from("imateapot.org")));
-                assert_eq!(true, filter.is_filtered(&String::from("www.imateapot.org")));
-                assert_eq!(true, filter.is_filtered(&String::from("m.www.imateapot.org")));
-                assert_eq!(false, filter.is_filtered(&String::from("imateapot.ca")));
-                assert_eq!(true, filter.is_filtered(&String::from("www.imateapot.info")));
-                assert_eq!(true, filter.is_filtered(&String::from("m.www.imateapot.info")));
-                assert_eq!(false, filter.is_filtered(&String::from("imateapot.info")));
-                assert_eq!(false, filter.is_filtered(&String::from("org")));
-                assert_eq!(false, filter.is_filtered(&String::from("com")));
+                assert_eq!(
+                    Some(String::from("imateapot.org")),
+                    filter.filtered_by(&String::from("imateapot.org"))
+                );
+                assert_eq!(
+                    Some(String::from("imateapot.org")),
+                    filter.filtered_by(&String::from("www.imateapot.org"))
+                );
+                assert_eq!(
+                    Some(String::from("imateapot.org")),
+                    filter.filtered_by(&String::from("m.www.imateapot.org"))
+                );
+                assert_eq!(None, filter.filtered_by(&String::from("imateapot.ca")));
+                assert_eq!(
+                    Some(String::from("www.imateapot.info")),
+                    filter.filtered_by(&String::from("www.imateapot.info"))
+                );
+                assert_eq!(
+                    Some(String::from("www.imateapot.info")),
+                    filter.filtered_by(&String::from("m.www.imateapot.info"))
+                );
+                assert_eq!(None, filter.filtered_by(&String::from("imateapot.info")));
+                assert_eq!(None, filter.filtered_by(&String::from("org")));
+                assert_eq!(None, filter.filtered_by(&String::from("com")));
             });
     }
 
@@ -186,7 +207,7 @@ mod tests {
         vec![FilterFormat::Vector, FilterFormat::Hash, FilterFormat::Tree]
             .iter()
             .for_each(move |format| {
-                let filter = Filter::from_disk(
+                let mut filter = Filter::from_disk(
                     FilterVersion::Test,
                     format.clone(),
                     PathBuf::from("./"),
@@ -194,7 +215,8 @@ mod tests {
                 )
                 .expect("Couldn't load filter");
 
-                assert_eq!(false, filter.is_filtered(&String::from("imateapot.org")));
+                assert_eq!(None, filter.filtered_by(&String::from("imateapot.org")));
+                assert_eq!(None, filter.filtered_by(&String::from("www.imateapot.org")));
             });
     }
 }
