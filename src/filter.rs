@@ -1,6 +1,7 @@
 use crate::cli::*;
 use crate::filter_statistics::*;
 use crate::tree::*;
+use smartstring::alias::String;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufRead};
@@ -43,7 +44,11 @@ impl Filter {
             FilterFormat::Tree
         };
         let filters_path = opt.filters_path.clone().unwrap_or(PathBuf::from("./"));
-        let allowed = opt.allowed.clone().unwrap_or(vec![]);
+        let allowed: Vec<String> = opt
+            .allowed
+            .clone()
+            .map(|domains| domains.iter().map(|domain| domain.into()).collect())
+            .unwrap_or(vec![]);
 
         Filter::from_disk(filter_version, filter_format, filters_path, allowed).expect("Couldn't load filter")
     }
@@ -64,11 +69,12 @@ impl Filter {
         allowed: Vec<String>,
     ) -> Result<Filter, std::io::Error> {
         let lines = if let Some(file_name) = Filter::get_file_name(version) {
-            let file = File::open(path.join(file_name))?;
+            let file = File::open(path.join(file_name.to_string()))?;
             let mut vec = io::BufReader::new(file)
                 .lines()
                 .filter_map(|maybe_line| match maybe_line {
                     Ok(line) => {
+                        let line: String = line.into();
                         if line.starts_with("#") {
                             None
                         } else if filtered_by(&line, |name| {
@@ -158,7 +164,7 @@ impl Filter {
 fn filtered_by(name: &String, contains: impl Fn(&String) -> Option<String>) -> Option<String> {
     let parts = name.split(".").collect::<Vec<&str>>();
     (0..parts.len()).find_map(|i| {
-        let name = parts.get(i..parts.len()).unwrap().join(".");
+        let name = parts.get(i..parts.len()).unwrap().join(".").into();
         contains(&name)
     })
 }

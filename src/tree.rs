@@ -1,3 +1,4 @@
+use smartstring::alias::String;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -23,13 +24,13 @@ impl Node {
 
         let key = key_parts[0];
 
-        if let Some(next) = self.children.get_mut(&key.to_string()) {
+        if let Some(next) = self.children.get_mut(key.into()) {
             next.insert(key_parts[1..].to_vec(), false);
         } else {
             let next = Node::new();
-            self.children.insert(key.clone().to_string(), next);
+            self.children.insert(key.clone().into(), next);
             self.children
-                .get_mut(&key.to_string())
+                .get_mut(key.into())
                 .unwrap()
                 .insert(key_parts[1..].to_vec(), true);
         }
@@ -78,7 +79,7 @@ impl Tree {
 
         if result == Processing::Success {
             rule.reverse();
-            Some(rule.join("."))
+            Some(rule.join(".").into())
         } else {
             None
         }

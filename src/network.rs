@@ -147,9 +147,9 @@ fn filter_query(filter: Arc<Mutex<Filter>>, query: &Message, verbosity: u8) -> b
         if qname.is_err() {
             return true;
         }
-        let name = qname.unwrap().join(".");
+        let name = qname.unwrap().join(".").into();
         if verbosity > 1 {
-            println!("{}", name);
+            println!("{:?}", name);
         }
         let mut filter = filter.lock().unwrap();
         if let Some(filtered) = filter.filtered_by(&name) {
