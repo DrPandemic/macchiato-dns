@@ -23,6 +23,7 @@ mod message;
 mod network;
 mod question;
 mod resource_record;
+mod ring_buffer;
 mod tree;
 mod web;
 use crate::cache::*;
@@ -44,6 +45,7 @@ async fn main() {
 
     let filter = Arc::new(Mutex::new(Filter::from_opt(&opt)));
     let cache = Arc::new(Mutex::new(Cache::new()));
+    let instrumentation_log = Arc::new(Mutex::new(InstrumentationLog::new()));
 
     let socket = UdpSocket::bind(if opt.debug {
         DEFAULT_INTERNAL_ADDRESS_DEBUG
@@ -58,7 +60,7 @@ async fn main() {
     // TODO: Considere using https://docs.rs/async-std/1.3.0/async_std/sync/fn.channel.html
     let (response_sender, response_receiver) = channel::<(SocketAddr, Instrumentation, Message)>();
 
-    spawn_responder(sending, response_receiver, verbosity);
+    spawn_responder(sending, response_receiver, Arc::clone(&instrumentation_log), verbosity);
     spawn_listener(
         receiving,
         response_sender,
@@ -66,5 +68,5 @@ async fn main() {
         Arc::clone(&cache),
         verbosity,
     );
-    start_web(&opt, filter, cache).await.unwrap();
+    start_web(&opt, filter, cache, instrumentation_log).await.unwrap();
 }

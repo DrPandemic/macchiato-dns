@@ -1,6 +1,7 @@
 use crate::cache::Cache;
 use crate::cli::*;
 use crate::filter::Filter;
+use crate::instrumentation::*;
 
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer};
 use std::sync::{Arc, Mutex};
@@ -12,6 +13,7 @@ const DEFAULT_EXTERNAL_ADDRESS: &str = "0.0.0.0:80";
 struct AppState {
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
+    instrumentation_log: Arc<Mutex<InstrumentationLog>>,
 }
 
 #[get("/cache")]
@@ -30,10 +32,24 @@ async fn get_filter_statistics(data: web::Data<AppState>) -> Result<HttpResponse
     Ok(HttpResponse::Ok().content_type("application/json").body(body))
 }
 
-pub async fn start_web(opt: &Opt, filter: Arc<Mutex<Filter>>, cache: Arc<Mutex<Cache>>) -> std::io::Result<()> {
+#[get("/instrumentation")]
+async fn get_instrumentation(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
+    let instrumentation_log = data.instrumentation_log.lock().unwrap();
+    let body = serde_json::to_string(&(*instrumentation_log)).unwrap();
+
+    Ok(HttpResponse::Ok().content_type("application/json").body(body))
+}
+
+pub async fn start_web(
+    opt: &Opt,
+    filter: Arc<Mutex<Filter>>,
+    cache: Arc<Mutex<Cache>>,
+    instrumentation_log: Arc<Mutex<InstrumentationLog>>,
+) -> std::io::Result<()> {
     let state = web::Data::new(AppState {
         filter: filter,
         cache: cache,
+        instrumentation_log: instrumentation_log,
     });
 
     let address = if opt.debug {
@@ -51,6 +67,7 @@ pub async fn start_web(opt: &Opt, filter: Arc<Mutex<Filter>>, cache: Arc<Mutex<C
             .app_data(state.clone())
             .service(get_cache)
             .service(get_filter_statistics)
+            .service(get_instrumentation)
     })
     .bind(address)?
     .run()

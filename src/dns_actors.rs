@@ -13,6 +13,7 @@ use tokio::net::udp::{RecvHalf, SendHalf};
 pub fn spawn_responder(
     socket: SendHalf,
     channel: Receiver<(SocketAddr, Instrumentation, Message)>,
+    instrumentation_log: Arc<Mutex<InstrumentationLog>>,
     verbosity: u8,
 ) {
     let mut socket = socket;
@@ -28,6 +29,7 @@ pub fn spawn_responder(
                 if verbosity > 1 {
                     instrumentation.display();
                 }
+                instrumentation_log.lock().unwrap().push(instrumentation);
             }
         }
     });

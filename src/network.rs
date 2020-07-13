@@ -122,7 +122,7 @@ pub fn spawn_remote_dns_query(
                 return;
             }
         } else {
-            instrumentation.set_request_sent();
+            instrumentation.set_request_sent(String::from(DEFAULT_DOH_DNS_RESOLVER));
             if let Ok(result) = query_remote_dns_server_doh(DEFAULT_DOH_DNS_RESOLVER, query).await {
                 instrumentation.set_request_received();
                 (true, result)
