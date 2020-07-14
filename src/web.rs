@@ -4,6 +4,7 @@ use crate::filter::Filter;
 use crate::instrumentation::*;
 
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer};
+use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 use std::sync::{Arc, Mutex};
 
 const DEFAULT_INTERNAL_ADDRESS_DEBUG: &str = "127.0.0.1:8080";
@@ -62,6 +63,11 @@ pub async fn start_web(
 
     let local = tokio::task::LocalSet::new();
     let sys = actix_rt::System::run_in_tokio("server", &local);
+
+    let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
+    builder.set_private_key_file("key.pem", SslFiletype::PEM).unwrap();
+    builder.set_certificate_chain_file("certs.pem").unwrap();
+
     HttpServer::new(move || {
         App::new()
             .app_data(state.clone())
@@ -69,7 +75,7 @@ pub async fn start_web(
             .service(get_filter_statistics)
             .service(get_instrumentation)
     })
-    .bind(address)?
+    .bind_openssl(address, builder)?
     .run()
     .await?;
     sys.await?;
