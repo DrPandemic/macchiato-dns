@@ -32,4 +32,8 @@ pub struct Opt {
     /// Bind on an externally accessible address
     #[structopt(short)]
     pub external: bool,
+
+    /// Web password. If none is set will generate one
+    #[structopt(long)]
+    pub web_password: Option<String>,
 }

@@ -12,3 +12,4 @@ pub mod resource_record;
 pub mod ring_buffer;
 pub mod tree;
 pub mod web;
+pub mod web_auth;

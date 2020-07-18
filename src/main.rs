@@ -27,6 +27,7 @@ mod resource_record;
 mod ring_buffer;
 mod tree;
 mod web;
+mod web_auth;
 use crate::cache::*;
 use crate::cli::*;
 use crate::dns_actors::*;

@@ -2,8 +2,10 @@ use crate::cache::Cache;
 use crate::cli::*;
 use crate::filter::Filter;
 use crate::instrumentation::*;
+use crate::web_auth::{get_web_password_hash, validator};
 
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer};
+use actix_web_httpauth::middleware::HttpAuthentication;
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 use std::sync::{Arc, Mutex};
 
@@ -11,10 +13,11 @@ const DEFAULT_INTERNAL_ADDRESS_DEBUG: &str = "127.0.0.1:8080";
 const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:80";
 const DEFAULT_EXTERNAL_ADDRESS: &str = "0.0.0.0:80";
 
-struct AppState {
+pub struct AppState {
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
+    pub config: Arc<Mutex<String>>,
 }
 
 #[get("/cache")]
@@ -47,10 +50,12 @@ pub async fn start_web(
     cache: Arc<Mutex<Cache>>,
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
 ) -> std::io::Result<()> {
+    let web_password = get_web_password_hash(&opt);
     let state = web::Data::new(AppState {
         filter: filter,
         cache: cache,
         instrumentation_log: instrumentation_log,
+        config: Arc::new(Mutex::new(web_password)),
     });
 
     let address = if opt.debug {
@@ -69,7 +74,9 @@ pub async fn start_web(
     builder.set_certificate_chain_file("certs.pem").unwrap();
 
     HttpServer::new(move || {
+        let auth = HttpAuthentication::bearer(validator);
         App::new()
+            .wrap(auth)
             .app_data(state.clone())
             .service(get_cache)
             .service(get_filter_statistics)
