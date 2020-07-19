@@ -70,8 +70,8 @@ pub async fn start_web(
     let sys = actix_rt::System::run_in_tokio("server", &local);
 
     let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
-    builder.set_private_key_file("key.pem", SslFiletype::PEM).unwrap();
-    builder.set_certificate_chain_file("certs.pem").unwrap();
+    builder.set_private_key_file("ssl/key.pem", SslFiletype::PEM).unwrap();
+    builder.set_certificate_chain_file("ssl/certs.pem").unwrap();
 
     HttpServer::new(move || {
         let auth = HttpAuthentication::bearer(validator);
