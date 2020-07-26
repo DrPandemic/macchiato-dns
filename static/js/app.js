@@ -1,9 +1,20 @@
-import { getFilterStatistics, getCache, getInstrumentation } from './network.js';
+import { getFilterStatistics, getCache, getInstrumentation, getPassword } from './network.js';
 
 const NSEC_PER_SEC = 1000000000;
 
 document.getElementById('login-button').addEventListener('click', main);
 document.getElementById('reload').addEventListener('click', main);
+
+document.getElementById("login-password").addEventListener("keyup", function(event) {
+    if (event.keyCode === 13) {
+        event.preventDefault();
+        document.getElementById("login-button").click();
+    }
+});
+
+if(getPassword()) {
+    main();
+}
 
 function main() {
     showStatistics()
@@ -18,6 +29,10 @@ function main() {
 }
 
 function showMain() {
+    const password = document.getElementById('login-password').value;
+    if(password) {
+        sessionStorage.setItem("password", password);
+    }
     document.getElementById('login-container').style.display = 'none';
     document.getElementById('main-container').style.display = 'block';
     return Promise.resolve();

@@ -9,8 +9,11 @@ COPY ./Cargo.lock ./
 COPY ./benches ./benches
 RUN cargo build --release
 
-COPY . /app
+COPY ./src ./src
 RUN cargo build --release
+
+COPY ./static ./static
+COPY ./blu.txt ./
 
 EXPOSE 53/udp
 ENTRYPOINT ["./target/release/dns"]
