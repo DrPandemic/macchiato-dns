@@ -15,6 +15,7 @@ use tokio::net::UdpSocket;
 
 mod cache;
 mod cli;
+mod config;
 mod dns_actors;
 mod filter;
 mod filter_statistics;

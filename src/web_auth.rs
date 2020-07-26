@@ -8,12 +8,16 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 
 pub async fn validator(req: ServiceRequest, credentials: BearerAuth) -> Result<ServiceRequest, Error> {
-    let config = req
-        .app_data::<AppState>()
-        .map(|state| state.config.lock().map(|config| Some(config.clone())).unwrap_or(None));
+    let web_password_hash = req.app_data::<AppState>().map(|state| {
+        state
+            .config
+            .lock()
+            .map(|config| Some(config.web_password_hash.clone()))
+            .unwrap_or(None)
+    });
 
-    if let Some(Some(config)) = config {
-        if let Ok(true) = verify(credentials.token(), &config) {
+    if let Some(Some(hash)) = web_password_hash {
+        if let Ok(true) = verify(credentials.token(), &hash) {
             Ok(req)
         } else {
             Err(error::ErrorUnauthorized(""))

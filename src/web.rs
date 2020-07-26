@@ -1,9 +1,11 @@
 use crate::cache::Cache;
 use crate::cli::*;
+use crate::config::Config;
 use crate::filter::Filter;
 use crate::instrumentation::*;
 use crate::web_auth::{get_web_password_hash, validator};
 
+use actix_files as fs;
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
@@ -17,7 +19,7 @@ pub struct AppState {
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
-    pub config: Arc<Mutex<String>>,
+    pub config: Arc<Mutex<Config>>,
 }
 
 #[get("/cache")]
@@ -50,12 +52,13 @@ pub async fn start_web(
     cache: Arc<Mutex<Cache>>,
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
 ) -> std::io::Result<()> {
-    let web_password = get_web_password_hash(&opt);
     let state = web::Data::new(AppState {
         filter: filter,
         cache: cache,
         instrumentation_log: instrumentation_log,
-        config: Arc::new(Mutex::new(web_password)),
+        config: Arc::new(Mutex::new(Config {
+            web_password_hash: get_web_password_hash(&opt),
+        })),
     });
 
     let address = if opt.debug {
@@ -76,11 +79,15 @@ pub async fn start_web(
     HttpServer::new(move || {
         let auth = HttpAuthentication::bearer(validator);
         App::new()
-            .wrap(auth)
             .app_data(state.clone())
-            .service(get_cache)
-            .service(get_filter_statistics)
-            .service(get_instrumentation)
+            .service(
+                web::scope("/api/1")
+                    .wrap(auth)
+                    .service(get_cache)
+                    .service(get_filter_statistics)
+                    .service(get_instrumentation),
+            )
+            .service(fs::Files::new("/", "./static").index_file("index.html"))
     })
     .bind_openssl(address, builder)?
     .run()

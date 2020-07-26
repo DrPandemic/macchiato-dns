@@ -1,5 +1,6 @@
 pub mod cache;
 pub mod cli;
+pub mod config;
 pub mod dns_actors;
 pub mod filter;
 pub mod filter_statistics;

@@ -1,0 +1,62 @@
+<!doctype html>
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+
+        <title>Macchiato DNS</title>
+        <meta name="description" content="Macchiato DNS configuration panel">
+
+        <link rel="stylesheet" href="styles.css">
+    </head>
+
+    <body>
+        <div id="login-container" class="login-container">
+            <h1>Macchiato DNS</h1>
+            <input id="login-password" class="login-password" type="password" placeholder="password" name="password" required>
+            <button id="login-button" class="login-button">Login</button>
+        </div>
+        <script type="module" src="js/app.js"></script>
+
+        <div id="main-container" class="main-container">
+            <button id="reload">Reload</button>
+            <div class="main-grid-container">
+                <div class="grid-item">
+                    <h2>Filtered</h2>
+                    <table>
+                        <tr>
+                            <th>Domain</th>
+                            <th>Count</th>
+                        </tr>
+                        <tbody id="statistics">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid-item">
+                    <h2>Cache</h2>
+                    <table>
+                        <tr>
+                            <th>Domain</th>
+                            <th>Valid Until</th>
+                        </tr>
+                        <tbody id="cache">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid-item">
+                    <h2>Instrumentation</h2>
+                    <table>
+                        <tr>
+                            <th>Resolver</th>
+                            <th>Average (ms)</th>
+                        </tr>
+                        <tbody id="instrumentation">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
