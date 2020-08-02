@@ -1,7 +1,7 @@
 const API_PATH = '/api/1'
 
 export function getPassword() {
-    return sessionStorage.getItem("password") || document.getElementById('login-password').value;
+    return sessionStorage.getItem('password') || document.getElementById('login-password').value;
 }
 
 function doCall(name) {
@@ -14,9 +14,10 @@ function doCall(name) {
     ).then(response => {
         if(response.status === 200) {
             return response.json();
-        } else {
-            return Promise.reject(new Error(response.statusText));
+        } else if(response.status === 401) {
+            sessionStorage.removeItem('password')
         }
+        return Promise.reject(new Error(response.statusText));
     });
 }
 

@@ -59,3 +59,16 @@ table {
     overflow: auto;
     display: block;
 }
+
+table td:nth-child(1) {
+    width: 60%;
+    word-break: break-all;
+}
+
+table td:nth-child(2) {
+    width: 40%;
+}
+
+tbody tr:nth-child(odd) {
+    background-color: #f2f2f2;
+}

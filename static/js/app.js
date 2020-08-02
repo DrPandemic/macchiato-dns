@@ -43,7 +43,7 @@ function showStatistics() {
         let entries = Object.entries(statistics.data.data);
         entries.sort((a, b) => a[1] - b[1]);
         const table = document.getElementById('statistics');
-        table.innerHTML = ""
+        table.innerHTML = '';
 
         for(const entry of entries) {
             const row = table.insertRow(0);
@@ -62,6 +62,8 @@ function showCache() {
         const table = document.getElementById('cache');
         table.innerHTML = ""
 
+        cache.data.data.sort((a, b) => a.valid_until - b.valid_until);
+
         for(const entry of cache.data.data) {
             const row = table.insertRow(0);
             const cell1 = row.insertCell(0);
@@ -71,6 +73,9 @@ function showCache() {
             date.setUTCSeconds(entry.valid_until);
             cell2.innerHTML = date.toLocaleString();
         }
+
+        const count = document.getElementById('cache-count');
+        count.textContent = cache.data.data.length;
 
         return Promise.resolve();
     });
