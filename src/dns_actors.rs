@@ -4,6 +4,7 @@ use crate::helpers::*;
 use crate::instrumentation::*;
 use crate::message::*;
 use crate::network::*;
+use crate::resolver_manager::ResolverManager;
 
 use std::net::SocketAddr;
 use std::sync::mpsc::{Receiver, Sender};
@@ -14,6 +15,7 @@ pub fn spawn_responder(
     socket: SendHalf,
     channel: Receiver<(SocketAddr, Instrumentation, Message)>,
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
+    resolver_manager: Arc<Mutex<ResolverManager>>,
     verbosity: u8,
 ) {
     let mut socket = socket;
@@ -29,7 +31,9 @@ pub fn spawn_responder(
                 if verbosity > 1 {
                     instrumentation.display();
                 }
-                instrumentation_log.lock().unwrap().push(instrumentation);
+                let mut log = instrumentation_log.lock().unwrap();
+                log.push(instrumentation);
+                log.update_resolver_manager(Arc::clone(&resolver_manager));
             }
         }
     });
@@ -40,6 +44,7 @@ pub fn spawn_listener(
     channel: Sender<(SocketAddr, Instrumentation, Message)>,
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
+    resolver_manager: Arc<Mutex<ResolverManager>>,
     verbosity: u8,
 ) {
     tokio::spawn(async move {
@@ -51,6 +56,7 @@ pub fn spawn_listener(
             spawn_remote_dns_query(
                 Arc::clone(&filter),
                 Arc::clone(&cache),
+                Arc::clone(&resolver_manager),
                 query,
                 src,
                 verbosity,

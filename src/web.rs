@@ -1,9 +1,8 @@
 use crate::cache::Cache;
-use crate::cli::*;
 use crate::config::Config;
 use crate::filter::Filter;
 use crate::instrumentation::*;
-use crate::web_auth::{get_web_password_hash, validator};
+use crate::web_auth::validator;
 
 use actix_files as fs;
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer};
@@ -47,27 +46,25 @@ async fn get_instrumentation(data: web::Data<AppState>) -> Result<HttpResponse, 
 }
 
 pub async fn start_web(
-    opt: &Opt,
+    config: Config,
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
 ) -> std::io::Result<()> {
-    let state = web::Data::new(AppState {
-        filter: filter,
-        cache: cache,
-        instrumentation_log: instrumentation_log,
-        config: Arc::new(Mutex::new(Config {
-            web_password_hash: get_web_password_hash(&opt),
-        })),
-    });
-
-    let address = if opt.debug {
+    let address = if config.debug {
         DEFAULT_INTERNAL_ADDRESS_DEBUG
-    } else if opt.external {
+    } else if config.external {
         DEFAULT_EXTERNAL_ADDRESS
     } else {
         DEFAULT_INTERNAL_ADDRESS
     };
+
+    let state = web::Data::new(AppState {
+        filter: filter,
+        cache: cache,
+        instrumentation_log: instrumentation_log,
+        config: Arc::new(Mutex::new(config)),
+    });
 
     let local = tokio::task::LocalSet::new();
     let sys = actix_rt::System::run_in_tokio("server", &local);

@@ -3,6 +3,7 @@ use crate::filter::*;
 use crate::helpers::*;
 use crate::instrumentation::*;
 use crate::message::*;
+use crate::resolver_manager::ResolverManager;
 use std::error::Error;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::mpsc::Sender;
@@ -11,7 +12,6 @@ use tokio::net::udp::RecvHalf;
 use tokio::net::UdpSocket;
 
 const MAX_DATAGRAM_SIZE: usize = 512;
-const DEFAULT_DOH_DNS_RESOLVER: &str = "https://1.1.1.1/dns-query";
 
 pub async fn recv_datagram(socket: &mut RecvHalf) -> Result<(Vec<u8>, std::net::SocketAddr), Box<dyn Error>> {
     let mut buf = [0; MAX_DATAGRAM_SIZE];
@@ -78,18 +78,21 @@ pub async fn query_remote_dns_server_udp(
 }
 
 pub async fn query_remote_dns_server_doh(
-    remote_address: &str,
+    resolver: (String, Option<(&'static str, &'static str)>),
     query: Message,
 ) -> Result<Message, Box<dyn std::error::Error>> {
-    let client = reqwest::Client::new();
-    let res = client
-        .post(remote_address)
+    let client = reqwest::Client::new()
+        .post(&resolver.0[..])
         .body(query.buffer)
-        .header("content-type", "application/dns-udpwireformat")
-        .send()
-        .await?
-        .bytes()
-        .await?;
+        .header("content-type", "application/dns-message");
+
+    let client = if let Some(header) = resolver.1 {
+        client.header(header.0, header.1)
+    } else {
+        client
+    };
+
+    let res = client.send().await?.bytes().await?;
 
     Ok(parse_message(res.to_vec()))
 }
@@ -97,6 +100,7 @@ pub async fn query_remote_dns_server_doh(
 pub fn spawn_remote_dns_query(
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
+    resolver_manager: Arc<Mutex<ResolverManager>>,
     query: Message,
     src: SocketAddr,
     verbosity: u8,
@@ -104,6 +108,7 @@ pub fn spawn_remote_dns_query(
     response_sender: Sender<(SocketAddr, Instrumentation, Message)>,
 ) {
     let mut instrumentation = instrumentation;
+
     tokio::spawn(async move {
         let cached = if let Ok(mut cache) = cache.lock() {
             cache.get(&query)
@@ -122,8 +127,9 @@ pub fn spawn_remote_dns_query(
                 return;
             }
         } else {
-            instrumentation.set_request_sent(String::from(DEFAULT_DOH_DNS_RESOLVER));
-            if let Ok(result) = query_remote_dns_server_doh(DEFAULT_DOH_DNS_RESOLVER, query).await {
+            let resolver = resolver_manager.lock().unwrap().get_resolver();
+            instrumentation.set_request_sent(resolver.0.clone());
+            if let Ok(result) = query_remote_dns_server_doh(resolver, query).await {
                 instrumentation.set_request_received();
                 (true, result)
             } else {

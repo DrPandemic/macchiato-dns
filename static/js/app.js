@@ -102,15 +102,17 @@ function showInstrumentation() {
         let entries = Object.entries(resolvers);
         entries = entries.map((entry) => {
             const sum = entry[1].reduce((acc, item) => acc + item, 0)
-            return { resolver: entry[0], average: sum / entry[1].length / (Math.pow(10, 6)) };
+            return { resolver: entry[0], average: sum / entry[1].length / (Math.pow(10, 6)), count: entry[1].length };
         });
 
         for(const entry of entries) {
             const row = table.insertRow(0);
-            const cell1 = row.insertCell(0);
-            const cell2 = row.insertCell(1);
-            cell1.innerHTML = entry.resolver;
-            cell2.innerHTML = entry.average;
+            const cell0 = row.insertCell(0);
+            const cell1 = row.insertCell(1);
+            const cell2 = row.insertCell(2);
+            cell0.innerHTML = entry.resolver;
+            cell1.innerHTML = entry.average;
+            cell2.innerHTML = entry.count;
         }
 
         return Promise.resolve();

@@ -1,4 +1,4 @@
-use crate::cli::*;
+use crate::config::Config;
 use crate::filter_statistics::*;
 use crate::tree::*;
 use smartstring::alias::String;
@@ -30,22 +30,22 @@ pub struct Filter {
 }
 
 impl Filter {
-    pub fn from_opt(opt: &Opt) -> Filter {
-        let filter_version = match &opt.filter_list[..] {
+    pub fn from_config(config: &Config) -> Filter {
+        let filter_version = match &config.filter_list[..] {
             "none" => FilterVersion::None,
             "blu" => FilterVersion::Blu,
             "ultimate" => FilterVersion::Ultimate,
             "test" => FilterVersion::Test,
             _ => panic!("Filter list is not valid"),
         };
-        let filter_format = if opt.small {
+        let filter_format = if config.small {
             FilterFormat::Vector
         } else {
             FilterFormat::Tree
         };
-        let filters_path = opt.filters_path.clone().unwrap_or(PathBuf::from("./"));
-        let allowed: Vec<String> = opt
-            .allowed
+        let filters_path = config.filters_path.clone().unwrap_or(PathBuf::from("./"));
+        let allowed: Vec<String> = config
+            .allowed_domains
             .clone()
             .map(|domains| domains.iter().map(|domain| domain.into()).collect())
             .unwrap_or(vec![]);

@@ -9,6 +9,7 @@ pub mod instrumentation;
 pub mod message;
 pub mod network;
 pub mod question;
+pub mod resolver_manager;
 pub mod resource_record;
 pub mod ring_buffer;
 pub mod tree;
