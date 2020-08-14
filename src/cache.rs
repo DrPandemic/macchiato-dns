@@ -97,6 +97,20 @@ impl Cache {
 
         Some(())
     }
+
+    pub fn remove(&mut self, name: &String) {
+        let mut keys_to_delete = vec![];
+        for (key, _) in self.data.iter() {
+            let key_name = &key.0;
+            if name == key_name {
+                keys_to_delete.push(key.clone());
+            }
+        }
+
+        for key in keys_to_delete {
+            self.data.pop(&key);
+        }
+    }
 }
 
 #[cfg(test)]

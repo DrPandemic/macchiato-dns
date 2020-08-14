@@ -34,12 +34,6 @@ impl ResolverManager {
         (entry.0.clone(), entry.1)
     }
 
-    pub fn reset_resolvers(&mut self) {
-        for entry in self.resolvers.iter_mut() {
-            entry.2 = Duration::new(0, 0);
-        }
-    }
-
     pub fn update_resolver(&mut self, resolver: String, average: Duration) {
         for entry in self.resolvers.iter_mut() {
             if entry.0 == resolver {

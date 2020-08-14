@@ -1,12 +1,27 @@
-import { getFilterStatistics, getCache, getInstrumentation, getPassword } from './network.js';
+import {
+    getFilterStatistics,
+    getCache,
+    getInstrumentation,
+    getPassword,
+    getAllowedDomains,
+    postAllowedDomains,
+} from './network.js';
 
 const NSEC_PER_SEC = 1000000000;
 
 document.getElementById('login-button').addEventListener('click', main);
 document.getElementById('reload').addEventListener('click', main);
+document.getElementById('add-domain-name-button').addEventListener('click', addAllowedDomain);
 
-document.getElementById("login-password").addEventListener("keyup", function(event) {
-    if (event.keyCode === 13) {
+document.getElementById('login-password').addEventListener('keyup', function(event) {
+    if (event.keycode === 13) {
+        event.preventDefault();
+        addAllowedDomain();
+    }
+});
+
+document.getElementById('add-domain-name').addEventListener('keyup', function(event) {
+    if (event.keycode === 13) {
         event.preventDefault();
         document.getElementById("login-button").click();
     }
@@ -21,6 +36,7 @@ function main() {
         .then(showMain)
         .then(showCache)
         .then(showInstrumentation)
+        .then(showAllowedDomains)
         .catch(e => {
             alert(e);
             document.getElementById('login-container').style.display = 'block';
@@ -29,6 +45,7 @@ function main() {
 }
 
 function showMain() {
+    document.getElementById('add-domain-name').value = '';
     const password = document.getElementById('login-password').value;
     if(password) {
         sessionStorage.setItem("password", password);
@@ -47,10 +64,10 @@ function showStatistics() {
 
         for(const entry of entries) {
             const row = table.insertRow(0);
-            const cell1 = row.insertCell(0);
-            const cell2 = row.insertCell(1);
-            cell1.innerHTML = entry[0];
-            cell2.innerHTML = entry[1];
+            const cell0 = row.insertCell(0);
+            const cell1 = row.insertCell(1);
+            cell0.innerHTML = entry[0];
+            cell1.innerHTML = entry[1];
         }
 
         return Promise.resolve();
@@ -66,12 +83,12 @@ function showCache() {
 
         for(const entry of cache.data.data) {
             const row = table.insertRow(0);
-            const cell1 = row.insertCell(0);
-            const cell2 = row.insertCell(1);
-            cell1.innerHTML = entry.message.name;
+            const cell0 = row.insertCell(0);
+            const cell1 = row.insertCell(1);
+            cell0.innerHTML = entry.message.name;
             const date = new Date(0);
             date.setUTCSeconds(entry.valid_until);
-            cell2.innerHTML = date.toLocaleString();
+            cell1.innerHTML = date.toLocaleString();
         }
 
         const count = document.getElementById('cache-count');
@@ -117,4 +134,23 @@ function showInstrumentation() {
 
         return Promise.resolve();
     });
+}
+
+function showAllowedDomains() {
+    return getAllowedDomains().then(domains => {
+        const table = document.getElementById('allowed-domains');
+        table.innerHTML = ""
+        for(const domain of domains) {
+            const row = table.insertRow(0);
+            const cell0 = row.insertCell(0);
+            cell0.innerHTML = domain;
+        }
+
+        return Promise.resolve();
+    });
+}
+
+function addAllowedDomain() {
+    const input = document.getElementById('add-domain-name').value;
+    postAllowedDomains(input).then(main);
 }

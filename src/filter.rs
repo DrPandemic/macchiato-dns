@@ -44,13 +44,8 @@ impl Filter {
             FilterFormat::Tree
         };
         let filters_path = config.filters_path.clone().unwrap_or(PathBuf::from("./"));
-        let allowed: Vec<String> = config
-            .allowed_domains
-            .clone()
-            .map(|domains| domains.iter().map(|domain| domain.into()).collect())
-            .unwrap_or(vec![]);
 
-        Filter::from_disk(filter_version, filter_format, filters_path, allowed).expect("Couldn't load filter")
+        Filter::from_disk(filter_version, filter_format, filters_path).expect("Couldn't load filter")
     }
 
     fn get_file_name(version: FilterVersion) -> Option<String> {
@@ -62,12 +57,7 @@ impl Filter {
         }
     }
 
-    pub fn from_disk(
-        version: FilterVersion,
-        format: FilterFormat,
-        path: PathBuf,
-        allowed: Vec<String>,
-    ) -> Result<Filter, std::io::Error> {
+    pub fn from_disk(version: FilterVersion, format: FilterFormat, path: PathBuf) -> Result<Filter, std::io::Error> {
         let lines = if let Some(file_name) = Filter::get_file_name(version) {
             let file = File::open(path.join(file_name.to_string()))?;
             let mut vec = io::BufReader::new(file)
@@ -76,13 +66,6 @@ impl Filter {
                     Ok(line) => {
                         let line: String = line.into();
                         if line.starts_with("#") {
-                            None
-                        } else if filtered_by(&line, |name| {
-                            let result = allowed.binary_search(name).ok();
-                            result.and_then(|i| allowed.get(i).map(|s| s.clone()))
-                        })
-                        .is_some()
-                        {
                             None
                         } else {
                             Some(line)
@@ -134,7 +117,13 @@ impl Filter {
         }
     }
 
-    pub fn filtered_by(&mut self, name: &String) -> Option<String> {
+    pub fn filtered_by(&mut self, name: &String, allowed_domains: &Vec<std::string::String>) -> Option<String> {
+        if allowed_domains
+            .binary_search(&std::string::String::from(name.as_str()))
+            .is_ok()
+        {
+            return None;
+        }
         let result = match self.format {
             FilterFormat::Vector => {
                 let vector = self.vector.as_ref().unwrap();
@@ -178,33 +167,33 @@ mod tests {
         vec![FilterFormat::Vector, FilterFormat::Hash, FilterFormat::Tree]
             .iter()
             .for_each(move |format| {
-                let mut filter = Filter::from_disk(FilterVersion::Test, format.clone(), PathBuf::from("./"), vec![])
+                let mut filter = Filter::from_disk(FilterVersion::Test, format.clone(), PathBuf::from("./"))
                     .expect("Couldn't load filter");
 
                 assert_eq!(
                     Some(String::from("imateapot.org")),
-                    filter.filtered_by(&String::from("imateapot.org"))
+                    filter.filtered_by(&String::from("imateapot.org"), vec![])
                 );
                 assert_eq!(
                     Some(String::from("imateapot.org")),
-                    filter.filtered_by(&String::from("www.imateapot.org"))
+                    filter.filtered_by(&String::from("www.imateapot.org"), vec![])
                 );
                 assert_eq!(
                     Some(String::from("imateapot.org")),
-                    filter.filtered_by(&String::from("m.www.imateapot.org"))
+                    filter.filtered_by(&String::from("m.www.imateapot.org"), vec![])
                 );
-                assert_eq!(None, filter.filtered_by(&String::from("imateapot.ca")));
+                assert_eq!(None, filter.filtered_by(&String::from("imateapot.ca"), vec![]));
                 assert_eq!(
                     Some(String::from("www.imateapot.info")),
-                    filter.filtered_by(&String::from("www.imateapot.info"))
+                    filter.filtered_by(&String::from("www.imateapot.info"), vec![])
                 );
                 assert_eq!(
                     Some(String::from("www.imateapot.info")),
-                    filter.filtered_by(&String::from("m.www.imateapot.info"))
+                    filter.filtered_by(&String::from("m.www.imateapot.info"), vec![])
                 );
-                assert_eq!(None, filter.filtered_by(&String::from("imateapot.info")));
-                assert_eq!(None, filter.filtered_by(&String::from("org")));
-                assert_eq!(None, filter.filtered_by(&String::from("com")));
+                assert_eq!(None, filter.filtered_by(&String::from("imateapot.info"), vec![]));
+                assert_eq!(None, filter.filtered_by(&String::from("org"), vec![]));
+                assert_eq!(None, filter.filtered_by(&String::from("com"), vec![]));
             });
     }
 
@@ -213,16 +202,23 @@ mod tests {
         vec![FilterFormat::Vector, FilterFormat::Hash, FilterFormat::Tree]
             .iter()
             .for_each(move |format| {
-                let mut filter = Filter::from_disk(
-                    FilterVersion::Test,
-                    format.clone(),
-                    PathBuf::from("./"),
-                    vec![String::from("imateapot.org")],
-                )
-                .expect("Couldn't load filter");
+                let mut filter = Filter::from_disk(FilterVersion::Test, format.clone(), PathBuf::from("./"))
+                    .expect("Couldn't load filter");
 
-                assert_eq!(None, filter.filtered_by(&String::from("imateapot.org")));
-                assert_eq!(None, filter.filtered_by(&String::from("www.imateapot.org")));
+                assert_eq!(
+                    None,
+                    filter.filtered_by(
+                        &String::from("imateapot.org"),
+                        vec![std::string::String::from("imateapot.org")]
+                    )
+                );
+                assert_eq!(
+                    None,
+                    filter.filtered_by(
+                        &String::from("www.imateapot.org"),
+                        vec![std::string::String::from("imateapot.org")]
+                    )
+                );
             });
     }
 }

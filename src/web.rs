@@ -5,9 +5,10 @@ use crate::instrumentation::*;
 use crate::web_auth::validator;
 
 use actix_files as fs;
-use actix_web::{get, web, App, Error, HttpResponse, HttpServer};
+use actix_web::{get, post, web, App, Error, HttpResponse, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
+use serde::Deserialize;
 use std::sync::{Arc, Mutex};
 
 const DEFAULT_INTERNAL_ADDRESS_DEBUG: &str = "127.0.0.1:8080";
@@ -45,25 +46,50 @@ async fn get_instrumentation(data: web::Data<AppState>) -> Result<HttpResponse, 
     Ok(HttpResponse::Ok().content_type("application/json").body(body))
 }
 
+#[get("/allowed-domains")]
+async fn get_allowed_domains(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
+    let config = data.config.lock().unwrap();
+    let body = serde_json::to_string(&config.allowed_domains).unwrap();
+
+    Ok(HttpResponse::Ok().content_type("application/json").body(body))
+}
+
+#[derive(Deserialize)]
+struct Domain {
+    name: String,
+}
+
+#[post("/allowed-domains")]
+async fn post_allowed_domains(domain: web::Json<Domain>, data: web::Data<AppState>) -> actix_web::Result<String> {
+    let mut config = data.config.lock().unwrap();
+
+    config.allowed_domains.push(domain.name.clone());
+
+    Ok("{}".to_string())
+}
+
 pub async fn start_web(
-    config: Config,
+    config: Arc<Mutex<Config>>,
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
 ) -> std::io::Result<()> {
-    let address = if config.debug {
-        DEFAULT_INTERNAL_ADDRESS_DEBUG
-    } else if config.external {
-        DEFAULT_EXTERNAL_ADDRESS
-    } else {
-        DEFAULT_INTERNAL_ADDRESS
+    let address = {
+        let locked_config = config.lock().unwrap();
+        if locked_config.debug {
+            DEFAULT_INTERNAL_ADDRESS_DEBUG
+        } else if locked_config.external {
+            DEFAULT_EXTERNAL_ADDRESS
+        } else {
+            DEFAULT_INTERNAL_ADDRESS
+        }
     };
 
     let state = web::Data::new(AppState {
         filter: filter,
         cache: cache,
         instrumentation_log: instrumentation_log,
-        config: Arc::new(Mutex::new(config)),
+        config: config,
     });
 
     let local = tokio::task::LocalSet::new();
@@ -82,7 +108,9 @@ pub async fn start_web(
                     .wrap(auth)
                     .service(get_cache)
                     .service(get_filter_statistics)
-                    .service(get_instrumentation),
+                    .service(get_instrumentation)
+                    .service(get_allowed_domains)
+                    .service(post_allowed_domains),
             )
             .service(fs::Files::new("/", "./static").index_file("index.html"))
     })

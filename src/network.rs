@@ -1,4 +1,5 @@
 use crate::cache::*;
+use crate::config::Config;
 use crate::filter::*;
 use crate::helpers::*;
 use crate::instrumentation::*;
@@ -101,6 +102,7 @@ pub fn spawn_remote_dns_query(
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
     resolver_manager: Arc<Mutex<ResolverManager>>,
+    config: Arc<Mutex<Config>>,
     query: Message,
     src: SocketAddr,
     verbosity: u8,
@@ -120,7 +122,7 @@ pub fn spawn_remote_dns_query(
                 println!("{:?} was served from cache", cached.name());
             }
             (false, cached)
-        } else if filter_query(filter, &query, verbosity) {
+        } else if filter_query(filter, config, &query, verbosity) {
             if let Ok(response) = generate_deny_response(&query) {
                 (false, response)
             } else {
@@ -147,7 +149,7 @@ pub fn spawn_remote_dns_query(
     });
 }
 
-fn filter_query(filter: Arc<Mutex<Filter>>, query: &Message, verbosity: u8) -> bool {
+fn filter_query(filter: Arc<Mutex<Filter>>, config: Arc<Mutex<Config>>, query: &Message, verbosity: u8) -> bool {
     if let Ok(question) = query.question() {
         let qname = question.qname();
         if qname.is_err() {
@@ -158,7 +160,7 @@ fn filter_query(filter: Arc<Mutex<Filter>>, query: &Message, verbosity: u8) -> b
             println!("{:?}", name);
         }
         let mut filter = filter.lock().unwrap();
-        if let Some(filtered) = filter.filtered_by(&name) {
+        if let Some(filtered) = filter.filtered_by(&name, &config.lock().unwrap().allowed_domains) {
             if verbosity > 0 {
                 println!("{:?} was filtered by {:?}!", name, filtered);
             }

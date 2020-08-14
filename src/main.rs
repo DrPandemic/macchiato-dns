@@ -67,6 +67,8 @@ async fn main() {
     // TODO: Considere using https://docs.rs/async-std/1.3.0/async_std/sync/fn.channel.html
     let (response_sender, response_receiver) = channel::<(SocketAddr, Instrumentation, Message)>();
 
+    let config = Arc::new(Mutex::new(config));
+
     spawn_responder(
         sending,
         response_receiver,
@@ -80,7 +82,10 @@ async fn main() {
         Arc::clone(&filter),
         Arc::clone(&cache),
         Arc::clone(&resolver_manager),
+        Arc::clone(&config),
         verbosity,
     );
-    start_web(config, filter, cache, instrumentation_log).await.unwrap();
+    start_web(Arc::clone(&config), filter, cache, instrumentation_log)
+        .await
+        .unwrap();
 }

@@ -1,4 +1,5 @@
 use crate::cache::*;
+use crate::config::Config;
 use crate::filter::*;
 use crate::helpers::*;
 use crate::instrumentation::*;
@@ -45,6 +46,7 @@ pub fn spawn_listener(
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
     resolver_manager: Arc<Mutex<ResolverManager>>,
+    config: Arc<Mutex<Config>>,
     verbosity: u8,
 ) {
     tokio::spawn(async move {
@@ -57,6 +59,7 @@ pub fn spawn_listener(
                 Arc::clone(&filter),
                 Arc::clone(&cache),
                 Arc::clone(&resolver_manager),
+                Arc::clone(&config),
                 query,
                 src,
                 verbosity,

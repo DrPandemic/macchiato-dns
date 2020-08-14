@@ -9,7 +9,7 @@ pub struct Config {
     pub small: bool,
     pub filter_list: String,
     pub filters_path: Option<PathBuf>,
-    pub allowed_domains: Option<Vec<String>>,
+    pub allowed_domains: Vec<String>,
     pub external: bool,
 }
 
@@ -22,7 +22,7 @@ impl Config {
             small: opt.small,
             filter_list: opt.filter_list,
             filters_path: opt.filters_path,
-            allowed_domains: opt.allowed,
+            allowed_domains: opt.allowed.clone().unwrap_or(vec![]),
             external: opt.external,
         }
     }
