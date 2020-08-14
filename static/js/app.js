@@ -145,10 +145,14 @@ function showAllowedDomains() {
             const row = table.insertRow(0);
             const cell0 = row.insertCell(0);
             const cell1 = row.insertCell(1);
+            const image = document.createElement('img');
+            image.src = 'icons/trash-solid.svg';
+            image.alt = 'Trash icon';
+            image.className = 'remove-icon';
+            image.addEventListener('click', () => removeAllowedDomain(domain))
             cell0.innerHTML = domain;
-            cell1.innerHTML = '<img src="icons/trash-solid.svg" alt="Trash icon" class="remove-icon">'
+            cell1.appendChild(image);
             cell1.className = 'remove-allowed-domains-column';
-            cell1.addEventListener('click', () => removeAllowedDomain(domain))
         }
 
         return Promise.resolve();

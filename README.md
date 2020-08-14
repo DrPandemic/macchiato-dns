@@ -56,3 +56,5 @@ enough features for my personal use.
 This software is distributed under Apache-2.0.
 
 It is using [lists from energized](https://github.com/EnergizedProtection/block) which are distributed under MIT.
+
+It is also using [Font Awesome Free](https://fontawesome.com/license).
