@@ -5,7 +5,7 @@ use crate::instrumentation::*;
 use crate::web_auth::validator;
 
 use actix_files as fs;
-use actix_web::{get, post, web, App, Error, HttpResponse, HttpServer};
+use actix_web::{delete, get, post, web, App, Error, HttpResponse, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 use serde::Deserialize;
@@ -68,6 +68,15 @@ async fn post_allowed_domains(domain: web::Json<Domain>, data: web::Data<AppStat
     Ok("{}".to_string())
 }
 
+#[delete("/allowed-domains")]
+async fn delete_allowed_domains(domain: web::Json<Domain>, data: web::Data<AppState>) -> actix_web::Result<String> {
+    let mut config = data.config.lock().unwrap();
+
+    config.allowed_domains.retain(|d| d != &domain.name.clone());
+
+    Ok("{}".to_string())
+}
+
 pub async fn start_web(
     config: Arc<Mutex<Config>>,
     filter: Arc<Mutex<Filter>>,
@@ -110,7 +119,8 @@ pub async fn start_web(
                     .service(get_filter_statistics)
                     .service(get_instrumentation)
                     .service(get_allowed_domains)
-                    .service(post_allowed_domains),
+                    .service(post_allowed_domains)
+                    .service(delete_allowed_domains),
             )
             .service(fs::Files::new("/", "./static").index_file("index.html"))
     })

@@ -5,6 +5,7 @@ import {
     getPassword,
     getAllowedDomains,
     postAllowedDomains,
+    deleteAllowedDomains,
 } from './network.js';
 
 const NSEC_PER_SEC = 1000000000;
@@ -14,16 +15,16 @@ document.getElementById('reload').addEventListener('click', main);
 document.getElementById('add-domain-name-button').addEventListener('click', addAllowedDomain);
 
 document.getElementById('login-password').addEventListener('keyup', function(event) {
-    if (event.keycode === 13) {
+    if (event.keyCode === 13) {
         event.preventDefault();
-        addAllowedDomain();
+        document.getElementById("login-button").click();
     }
 });
 
 document.getElementById('add-domain-name').addEventListener('keyup', function(event) {
-    if (event.keycode === 13) {
+    if (event.keyCode === 13) {
         event.preventDefault();
-        document.getElementById("login-button").click();
+        addAllowedDomain();
     }
 });
 
@@ -139,18 +140,30 @@ function showInstrumentation() {
 function showAllowedDomains() {
     return getAllowedDomains().then(domains => {
         const table = document.getElementById('allowed-domains');
-        table.innerHTML = ""
+        table.innerHTML = "";
         for(const domain of domains) {
             const row = table.insertRow(0);
             const cell0 = row.insertCell(0);
+            const cell1 = row.insertCell(1);
             cell0.innerHTML = domain;
+            cell1.innerHTML = '<img src="icons/trash-solid.svg" alt="Trash icon" class="remove-icon">'
+            cell1.className = 'remove-allowed-domains-column';
+            cell1.addEventListener('click', () => removeAllowedDomain(domain))
         }
 
         return Promise.resolve();
     });
 }
 
+function removeAllowedDomain(domain) {
+    deleteAllowedDomains(domain).then(main);
+}
+
 function addAllowedDomain() {
     const input = document.getElementById('add-domain-name').value;
+    if (input === '') {
+        return;
+    }
+
     postAllowedDomains(input).then(main);
 }

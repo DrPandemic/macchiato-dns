@@ -4,15 +4,15 @@ export function getPassword() {
     return sessionStorage.getItem('password') || document.getElementById('login-password').value;
 }
 
-function doCall(name, payload = null) {
+function doCall(name, verb = 'GET', payload = null) {
     let options = {
+        method: verb,
         headers: {
             authorization: `Bearer ${getPassword()}`,
             'Content-Type': 'application/json'
         },
     };
     if (payload !== null) {
-        options['method'] = 'POST';
         options['body'] = JSON.stringify(payload);
     }
 
@@ -44,5 +44,9 @@ export function getAllowedDomains() {
 }
 
 export function postAllowedDomains(domain) {
-    return doCall('allowed-domains', { name: domain });
+    return doCall('allowed-domains', 'POST', { name: domain });
+}
+
+export function deleteAllowedDomains(domain) {
+    return doCall('allowed-domains', 'DELETE', { name: domain });
 }
