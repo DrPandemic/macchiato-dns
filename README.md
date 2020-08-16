@@ -6,6 +6,9 @@ communications.
 Macchiato DNS uses DoH to communicate securely with trusted DNS servers. This means that running Macchiato DNS locally
 will pervents your ISP from snooping on your DNS traffic.
 
+### Multiple DoH servers
+Macchiato is trying to use multiple DNS servers and will will the one(s) giving you the best performance.
+
 ## Blocklist
 Macchiato also uses [energized block lists](https://github.com/EnergizedProtection/block) to prevent you computer from
 communicating with known ad and malware servers. This will improve web page load performance and reduce the chance of
@@ -14,6 +17,11 @@ downloading a malware.
 ## Caching
 Macchiato DNS caches DNS responses according to their respective TTLs. This should accelerate web browsing and reduce
 bandwidth usage.
+
+## Simple Web UI
+The web UI lets you track what's happening on your network and update allowed domains.
+
+![macchiato](https://user-images.githubusercontent.com/3250155/90339707-81a4d680-dfc0-11ea-9b59-c62dcadd7ba8.jpg)
 
 ## Flags
 Loading the block list will take a considerable amount of memory on small devices (think raspberry-pi). For that reason,
@@ -44,6 +52,12 @@ $ systemctl enable macchiato.service --now
 ### resolv.conf
 Finally, you will need to setup your OS to use your local computer as its DNS resolver. Using your favorite text editor,
 comment out with `#` every line starting with `nameserver` in `/etc/resolv.conf` and add `nameserver 127.0.0.1`.
+
+### Run on an external device
+I personally run my Macchiatod-dns server on a Raspberry Pi 3b somewhere on my network and configured my router to use it has its DNS server. That's the command I use to launch it in docker.
+```
+$ docker run -d --rm -v /path/to/ssl/certs:/app/ssl -p 8080:80 -p 53:53/udp --name macchiato-dns macchiato-dns -e --allowed foo.bar baz.foo
+```
 
 ## Contributing
 If you think there's a missing feature, feel free to open a pull request. I will be more than happy to help you
