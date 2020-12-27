@@ -3,13 +3,16 @@ use crate::config::Config;
 use crate::filter::Filter;
 use crate::instrumentation::*;
 use crate::web_auth::validator;
+use crate::filter_statistics::FilterStatistics;
 
 use actix_files as fs;
-use actix_web::{delete, get, post, web, App, Error, HttpResponse, HttpServer};
+use actix_web::{delete, get, post, web, error, App, Error, HttpResponse, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 use serde::Deserialize;
 use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
+use std::sync::mpsc::Sender;
 
 const DEFAULT_INTERNAL_ADDRESS_DEBUG: &str = "127.0.0.1:8080";
 const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:80";
@@ -20,6 +23,7 @@ pub struct AppState {
     cache: Arc<Mutex<Cache>>,
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
     pub config: Arc<Mutex<Config>>,
+    pub filter_update_channel: Arc<Mutex<Sender<()>>>,
 }
 
 #[get("/cache")]
@@ -30,10 +34,23 @@ async fn get_cache(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().content_type("application/json").body(body))
 }
 
-#[get("/filter-statistics")]
-async fn get_filter_statistics(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
+#[derive(serde::Serialize)]
+struct StatisticsBody<'a> {
+    pub statistics: &'a FilterStatistics,
+    pub size: usize,
+    pub created_at: SystemTime,
+}
+
+#[get("/filter")]
+async fn get_filter(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
     let filter = data.filter.lock().unwrap();
-    let body = serde_json::to_string(&filter.statistics).unwrap();
+
+    let content = StatisticsBody {
+        statistics: &filter.statistics,
+        size: filter.size,
+        created_at: filter.created_at,
+    };
+    let body = serde_json::to_string(&content)?;
 
     Ok(HttpResponse::Ok().content_type("application/json").body(body))
 }
@@ -68,6 +85,16 @@ async fn post_allowed_domains(domain: web::Json<Domain>, data: web::Data<AppStat
     Ok("{}".to_string())
 }
 
+#[post("/update-filter")]
+async fn post_update_filter(data: web::Data<AppState>) -> actix_web::Result<String> {
+    let result = data.filter_update_channel.lock().unwrap().send(());
+    if result.is_ok() {
+        Ok("{}".to_string())
+    } else {
+        Err(error::ErrorServiceUnavailable("{\"error\": \"Can't update filter\"}".to_string()))
+    }
+}
+
 #[delete("/allowed-domains")]
 async fn delete_allowed_domains(domain: web::Json<Domain>, data: web::Data<AppState>) -> actix_web::Result<String> {
     let mut config = data.config.lock().unwrap();
@@ -82,6 +109,7 @@ pub async fn start_web(
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
+    filter_update_channel: Sender<()>,
 ) -> std::io::Result<()> {
     let address = {
         let locked_config = config.lock().unwrap();
@@ -99,6 +127,7 @@ pub async fn start_web(
         cache: cache,
         instrumentation_log: instrumentation_log,
         config: config,
+        filter_update_channel: Arc::new(Mutex::new(filter_update_channel)),
     });
 
     let local = tokio::task::LocalSet::new();
@@ -116,10 +145,11 @@ pub async fn start_web(
                 web::scope("/api/1")
                     .wrap(auth)
                     .service(get_cache)
-                    .service(get_filter_statistics)
+                    .service(get_filter)
                     .service(get_instrumentation)
                     .service(get_allowed_domains)
                     .service(post_allowed_domains)
+                    .service(post_update_filter)
                     .service(delete_allowed_domains),
             )
             .service(fs::Files::new("/", "./static").index_file("index.html"))

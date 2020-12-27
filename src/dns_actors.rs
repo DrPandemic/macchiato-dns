@@ -8,21 +8,22 @@ use crate::network::*;
 use crate::resolver_manager::ResolverManager;
 
 use std::net::SocketAddr;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::{Sender, channel};
 use std::sync::{Arc, Mutex};
 use tokio::net::udp::{RecvHalf, SendHalf};
 
 pub fn spawn_responder(
     socket: SendHalf,
-    channel: Receiver<(SocketAddr, Instrumentation, Message)>,
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
     resolver_manager: Arc<Mutex<ResolverManager>>,
     verbosity: u8,
-) {
+) -> Sender<(SocketAddr, Instrumentation, Message)> {
+    // TODO: Considere using https://docs.rs/async-std/1.3.0/async_std/sync/fn.channel.html
+    let (response_sender, response_receiver) = channel::<(SocketAddr, Instrumentation, Message)>();
     let mut socket = socket;
     tokio::spawn(async move {
         loop {
-            let result = channel.recv();
+            let result = response_receiver.recv();
             if let Ok((src, instrumentation, message)) = result {
                 let sent = message.send_to(&mut socket, &src).await;
                 if sent.is_err() {
@@ -38,6 +39,8 @@ pub fn spawn_responder(
             }
         }
     });
+
+    return response_sender;
 }
 
 pub fn spawn_listener(
@@ -68,4 +71,26 @@ pub fn spawn_listener(
             );
         }
     });
+}
+
+pub fn spawn_filter_updater(
+    filter: Arc<Mutex<Filter>>,
+    config: Arc<Mutex<Config>>,
+) -> Sender<()> {
+    let (response_sender, response_receiver) = channel::<()>();
+    tokio::spawn(async move {
+        loop {
+            if response_receiver.recv().is_ok() {
+                if let Ok(new_filter) = Filter::from_internet(Arc::clone(&config)).await {
+                    let mut filter = filter.lock().unwrap();
+                    *filter = new_filter;
+                }
+            } else {
+                let config = config.lock().unwrap();
+                log_error("Failed to send back UDP packet", config.verbosity);
+            }
+        }
+    });
+
+    return response_sender;
 }

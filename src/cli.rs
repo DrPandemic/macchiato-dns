@@ -19,7 +19,7 @@ pub struct Opt {
 
     /// none, blu or ultimate. Defaults to blu
     #[structopt(short = "f", long, default_value = "blu")]
-    pub filter_list: String,
+    pub filter_version: String,
 
     /// Directory containing filter lists
     #[structopt(long, parse(from_os_str))]

@@ -27,8 +27,12 @@ function doCall(name, verb = 'GET', payload = null) {
     });
 }
 
-export function getFilterStatistics() {
-    return doCall('filter-statistics');
+export function getFilter() {
+    return doCall('filter');
+}
+
+export function postUpdateFilter() {
+    return doCall('update-filter', 'POST');
 }
 
 export function getCache() {

@@ -1,18 +1,21 @@
 import {
-    getFilterStatistics,
+    getFilter,
     getCache,
     getInstrumentation,
     getPassword,
     getAllowedDomains,
     postAllowedDomains,
+    postUpdateFilter,
     deleteAllowedDomains,
 } from './network.js';
 
 const NSEC_PER_SEC = 1000000000;
+let filter_created_at;
 
 document.getElementById('login-button').addEventListener('click', main);
 document.getElementById('reload').addEventListener('click', main);
 document.getElementById('add-domain-name-button').addEventListener('click', addAllowedDomain);
+document.getElementById('update-filter').addEventListener('click', updateFilter);
 
 document.getElementById('login-password').addEventListener('keyup', function(event) {
     if (event.keyCode === 13) {
@@ -57,8 +60,8 @@ function showMain() {
 }
 
 function showStatistics() {
-    return getFilterStatistics().then(statistics => {
-        let entries = Object.entries(statistics.data.data);
+    return getFilter().then(filter => {
+        let entries = Object.entries(filter.statistics.data.data);
         entries.sort((a, b) => a[1] - b[1]);
         const table = document.getElementById('statistics');
         table.innerHTML = '';
@@ -70,6 +73,10 @@ function showStatistics() {
             cell0.innerHTML = entry[0];
             cell1.innerHTML = entry[1];
         }
+
+        document.getElementById('filter-size').innerText = `${filter.size} entries`;
+        document.getElementById('filter-created-at').innerText = new Date(filter.created_at.secs_since_epoch * 1000);
+        filter_created_at = filter.created_at.secs_since_epoch;
 
         return Promise.resolve();
     });
@@ -170,4 +177,25 @@ function addAllowedDomain() {
     }
 
     postAllowedDomains(input).then(main);
+}
+
+function sleep(m) {
+    return new Promise(r => setTimeout(r, m));
+}
+
+function updateFilter() {
+    const button = document.getElementById('update-filter');
+    button.disabled = true;
+    let seen_created_at = filter_created_at;
+    const checkFilter = () => {
+        return showStatistics().then(async () => {
+            if (filter_created_at === seen_created_at) {
+                await sleep(1000);
+                return checkFilter();
+            } else {
+                button.disabled = false;
+            }
+        });
+    };
+    return postUpdateFilter().then(showStatistics).then(checkFilter);
 }

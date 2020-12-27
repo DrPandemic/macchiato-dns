@@ -6,9 +6,7 @@ extern crate reqwest;
 extern crate smartstring;
 extern crate tokio;
 
-use std::net::SocketAddr;
 use std::str;
-use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
 use tokio::net::UdpSocket;
@@ -36,7 +34,6 @@ use crate::config::Config;
 use crate::dns_actors::*;
 use crate::filter::*;
 use crate::instrumentation::*;
-use crate::message::*;
 use crate::resolver_manager::ResolverManager;
 use crate::web::*;
 
@@ -48,12 +45,6 @@ const DEFAULT_INTERNAL_ADDRESS_DEBUG: &str = "127.0.0.1:5553";
 async fn main() {
     let config = Config::from_opt(Opt::from_args());
     let verbosity = config.verbosity;
-
-    let filter = Arc::new(Mutex::new(Filter::from_config(&config)));
-    let cache = Arc::new(Mutex::new(Cache::new()));
-    let instrumentation_log = Arc::new(Mutex::new(InstrumentationLog::new()));
-    let resolver_manager = Arc::new(Mutex::new(ResolverManager::new()));
-
     let socket = UdpSocket::bind(if config.debug {
         DEFAULT_INTERNAL_ADDRESS_DEBUG
     } else if config.external {
@@ -63,15 +54,17 @@ async fn main() {
     })
     .await
     .expect("tried to bind an UDP port");
-    let (receiving, sending) = socket.split();
-    // TODO: Considere using https://docs.rs/async-std/1.3.0/async_std/sync/fn.channel.html
-    let (response_sender, response_receiver) = channel::<(SocketAddr, Instrumentation, Message)>();
-
     let config = Arc::new(Mutex::new(config));
 
-    spawn_responder(
+    let filter = Arc::new(Mutex::new(Filter::from_config(Arc::clone(&config))));
+    let cache = Arc::new(Mutex::new(Cache::new()));
+    let instrumentation_log = Arc::new(Mutex::new(InstrumentationLog::new()));
+    let resolver_manager = Arc::new(Mutex::new(ResolverManager::new()));
+
+    let (receiving, sending) = socket.split();
+
+    let response_sender = spawn_responder(
         sending,
-        response_receiver,
         Arc::clone(&instrumentation_log),
         Arc::clone(&resolver_manager),
         verbosity,
@@ -85,7 +78,8 @@ async fn main() {
         Arc::clone(&config),
         verbosity,
     );
-    start_web(Arc::clone(&config), filter, cache, instrumentation_log)
+    let filter_update_channel = spawn_filter_updater(Arc::clone(&filter), Arc::clone(&config));
+    start_web(Arc::clone(&config), filter, cache, instrumentation_log, filter_update_channel)
         .await
         .unwrap();
 }

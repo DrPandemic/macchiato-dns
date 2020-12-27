@@ -4,9 +4,13 @@ use crate::tree::*;
 use smartstring::alias::String;
 use std::collections::HashSet;
 use std::fs::File;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Read, empty};
 use std::path::PathBuf;
+use std::time::SystemTime;
+use std::sync::{Arc, Mutex};
+use std::fs;
 
+#[derive(Clone)]
 pub enum FilterVersion {
     None,
     Blu,
@@ -27,28 +31,32 @@ pub struct Filter {
     pub hash: Option<HashSet<String>>,
     pub tree: Option<Tree>,
     pub statistics: FilterStatistics,
+    pub size: usize,
+    pub created_at: SystemTime,
+}
+
+impl Default for Filter {
+    fn default() -> Filter {
+        Filter {
+            format: FilterFormat::Vector,
+            vector: None,
+            hash: None,
+            tree: None,
+            statistics: FilterStatistics::new(),
+            size: 0,
+            created_at: SystemTime::now(),
+        }
+    }
 }
 
 impl Filter {
-    pub fn from_config(config: &Config) -> Filter {
-        let filter_version = match &config.filter_list[..] {
-            "none" => FilterVersion::None,
-            "blu" => FilterVersion::Blu,
-            "ultimate" => FilterVersion::Ultimate,
-            "test" => FilterVersion::Test,
-            _ => panic!("Filter list is not valid"),
-        };
-        let filter_format = if config.small {
-            FilterFormat::Vector
-        } else {
-            FilterFormat::Tree
-        };
-        let filters_path = config.filters_path.clone().unwrap_or(PathBuf::from("./"));
+    pub fn from_config(config: Arc<Mutex<Config>>) -> Filter {
+        let filters_path = config.lock().unwrap().filters_path.clone().unwrap_or(PathBuf::from("./"));
 
-        Filter::from_disk(filter_version, filter_format, filters_path).expect("Couldn't load filter")
+        Filter::from_disk(config, filters_path).expect("Couldn't load filter")
     }
 
-    fn get_file_name(version: FilterVersion) -> Option<String> {
+    fn get_file_name(version: &FilterVersion) -> Option<String> {
         match version {
             FilterVersion::Blu => Some(String::from("blu.txt")),
             FilterVersion::Ultimate => Some(String::from("ultimate.txt")),
@@ -57,61 +65,80 @@ impl Filter {
         }
     }
 
-    pub fn from_disk(version: FilterVersion, format: FilterFormat, path: PathBuf) -> Result<Filter, std::io::Error> {
-        let lines = if let Some(file_name) = Filter::get_file_name(version) {
-            let file = File::open(path.join(file_name.to_string()))?;
-            let mut vec = io::BufReader::new(file)
-                .lines()
-                .filter_map(|maybe_line| match maybe_line {
-                    Ok(line) => {
-                        let line: String = line.into();
-                        if line.starts_with("#") {
-                            None
-                        } else {
-                            Some(line)
-                        }
-                    }
-                    _ => None,
-                })
-                .collect::<Vec<String>>();
-            vec.sort();
-            vec
-        } else {
-            vec![]
-        };
+    pub async fn from_internet(config: Arc<Mutex<Config>>) -> Result<Filter, Box<dyn std::error::Error>> {
+        let client = reqwest::Client::builder()
+            .brotli(true)
+            .build()?
+            .get("https://block.energized.pro/blu/formats/domains.txt");
+        let resp = client.send().await?.text().await?;
+        let buffer = io::BufReader::new(resp.as_bytes());
 
-        match format {
+        Self::from_buffer(config, buffer).map_err(|e| e.into())
+    }
+
+    pub fn from_disk(config: Arc<Mutex<Config>>, path: PathBuf) -> Result<Filter, std::io::Error> {
+        let filter_version = &config.lock().unwrap().filter_version.clone();
+        if let Some(file_name) = Filter::get_file_name(filter_version) {
+            let file = File::open(path.join(file_name.to_string()))?;
+            Self::from_buffer(config, io::BufReader::new(file)).and_then(|mut filter| {
+                if let Ok(time) = fs::metadata(file_name.to_string())?.created() {
+                    filter.created_at = time;
+                }
+                Ok(filter)
+            })
+        } else {
+            Self::from_buffer(config, io::BufReader::new(empty()))
+        }
+    }
+
+    fn from_buffer<T: Read>(config: Arc<Mutex<Config>>, buffer: io::BufReader<T>) -> Result<Filter, std::io::Error> {
+        let mut lines = buffer.lines()
+            .filter_map(|maybe_line| match maybe_line {
+                Ok(line) => {
+                    let line: String = line.into();
+                    if line.starts_with("#") {
+                        None
+                    } else {
+                        Some(line)
+                    }
+                }
+                _ => None,
+            })
+            .collect::<Vec<String>>();
+        lines.sort();
+
+        let filter_format = config.lock().unwrap().filter_format.clone();
+        match filter_format {
             FilterFormat::Vector => Ok(Filter {
-                format: format,
+                format: filter_format,
+                size: lines.len(),
                 vector: Some(lines),
-                hash: None,
-                tree: None,
-                statistics: FilterStatistics::new(),
+                ..Default::default()
             }),
             FilterFormat::Hash => {
                 let mut hash = HashSet::new();
+                let len = lines.len();
                 for line in lines {
                     hash.insert(line);
                 }
                 Ok(Filter {
-                    format: format,
-                    vector: None,
+                    format: filter_format,
+                    size: len,
                     hash: Some(hash),
-                    tree: None,
-                    statistics: FilterStatistics::new(),
+                    ..Default::default()
                 })
             }
             FilterFormat::Tree => {
                 let mut tree = Tree::new();
+                let len = lines.len();
                 for line in lines {
                     tree.insert(&line);
                 }
                 Ok(Filter {
-                    format: format,
-                    vector: None,
-                    hash: None,
+                    format: filter_format,
+                    size: len,
                     tree: Some(tree),
-                    statistics: FilterStatistics::new(),
+                    ..Default::default()
                 })
             }
         }
