@@ -59,6 +59,13 @@ I personally run my Macchiatod-dns server on a Raspberry Pi 3b somewhere on my n
 $ docker run -d --rm -v /path/to/ssl/certs:/app/ssl -p 8080:80 -p 53:53/udp --name macchiato-dns macchiato-dns -e --allowed foo.bar baz.foo
 ```
 
+## TODO
+
+- [ ] Shouldn't block packets that failed to parse.
+- [ ] EDNS
+- [ ] DNSSEC.
+- [ ] ODoH.
+
 ## Contributing
 If you think there's a missing feature, feel free to open a pull request. I will be more than happy to help you
 contribute.

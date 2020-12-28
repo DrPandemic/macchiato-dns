@@ -2,9 +2,13 @@ use crate::helpers::*;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::error::Error;
 
-// https://tools.ietf.org/html/rfc6891#section-6.1.2
-// RRs with type Opt(41), are not parsed the same. It's the same format, but different names.
-// However, TTL seems to be parsed in multiple entries.
+// https://tools.ietf.org/html/rfc6891#section-6.1.2 RRs with type Opt(41), are not parsed the same way. It's the same
+// format, but different names. However, TTL seems to be parsed in multiple entries.
+
+// https://en.wikipedia.org/wiki/Extension_mechanisms_for_DNS#Mechanism
+// > The mechanism is backward compatible, because older DNS responders ignore any RR of the unknown OPT type in a
+// request and a newer DNS responder never includes an OPT in a response unless there was one in the request. The
+// presence of the OPT in the request signifies a newer requester that knows what to do with an OPT in the response.
 #[derive(Debug)]
 pub struct ResourceRecord {
     pub name: Vec<String>,
