@@ -15,6 +15,22 @@ pub struct Config {
     pub web_password_hash: String,
 }
 
+impl Default for Config {
+    fn default() -> Config {
+        Config {
+            allowed_domains: vec![],
+            debug: true,
+            external: true,
+            filters_path: Some(PathBuf::from("./")),
+            filter_version: FilterVersion::None,
+            filter_format: FilterFormat::Tree,
+            small: true,
+            verbosity: 3,
+            web_password_hash: String::from("asdf"),
+        }
+    }
+}
+
 impl Config {
     pub fn from_opt(opt: Opt) -> Config {
         Config {
@@ -30,7 +46,7 @@ impl Config {
         }
     }
 
-    pub fn filter_version(filter_version: &String) -> FilterVersion {
+    fn filter_version(filter_version: &String) -> FilterVersion {
         match &filter_version[..] {
             "none" => FilterVersion::None,
             "blu" => FilterVersion::Blu,
@@ -40,7 +56,7 @@ impl Config {
         }
     }
 
-    pub fn filter_format(small: &bool) -> FilterFormat {
+    fn filter_format(small: &bool) -> FilterFormat {
         if *small {
             FilterFormat::Vector
         } else {

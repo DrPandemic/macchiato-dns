@@ -145,10 +145,7 @@ impl Filter {
     }
 
     pub fn filtered_by(&mut self, name: &String, allowed_domains: &Vec<std::string::String>) -> Option<String> {
-        if allowed_domains
-            .binary_search(&std::string::String::from(name.as_str()))
-            .is_ok()
-        {
+        if is_name_in_allowed_list(name, allowed_domains) {
             return None;
         }
         let result = match self.format {
@@ -185,6 +182,16 @@ fn filtered_by(name: &String, contains: impl Fn(&String) -> Option<String>) -> O
     })
 }
 
+fn is_name_in_allowed_list(name: &String, allowed_domains: &Vec<std::string::String>) -> bool {
+    filtered_by(&name, |name| {
+        allowed_domains
+            .binary_search(&std::string::String::from(name.as_str()))
+            .ok()
+            .map(|_| String::from(""))
+    }).is_some()
+   // hash.get(name).map(|name| name.clone()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -194,33 +201,34 @@ mod tests {
         vec![FilterFormat::Vector, FilterFormat::Hash, FilterFormat::Tree]
             .iter()
             .for_each(move |format| {
-                let mut filter = Filter::from_disk(FilterVersion::Test, format.clone(), PathBuf::from("./"))
+                let config = Arc::new(Mutex::new(Config{filter_version: FilterVersion::Test, filter_format: format.clone(), ..Default::default()}));
+                let mut filter = Filter::from_disk(Arc::clone(&config), PathBuf::from("./"))
                     .expect("Couldn't load filter");
 
-                assert_eq!(
-                    Some(String::from("imateapot.org")),
-                    filter.filtered_by(&String::from("imateapot.org"), vec![])
+                assert_ne!(
+                    None,
+                    filter.filtered_by(&String::from("imateapot.org"), &vec![])
                 );
-                assert_eq!(
-                    Some(String::from("imateapot.org")),
-                    filter.filtered_by(&String::from("www.imateapot.org"), vec![])
+                assert_ne!(
+                    None,
+                    filter.filtered_by(&String::from("www.imateapot.org"), &vec![])
                 );
-                assert_eq!(
-                    Some(String::from("imateapot.org")),
-                    filter.filtered_by(&String::from("m.www.imateapot.org"), vec![])
+                assert_ne!(
+                    None,
+                    filter.filtered_by(&String::from("m.www.imateapot.org"), &vec![])
                 );
-                assert_eq!(None, filter.filtered_by(&String::from("imateapot.ca"), vec![]));
-                assert_eq!(
-                    Some(String::from("www.imateapot.info")),
-                    filter.filtered_by(&String::from("www.imateapot.info"), vec![])
+                assert_eq!(None, filter.filtered_by(&String::from("imateapot.ca"), &vec![]));
+                assert_ne!(
+                    None,
+                    filter.filtered_by(&String::from("www.imateapot.info"), &vec![])
                 );
-                assert_eq!(
-                    Some(String::from("www.imateapot.info")),
-                    filter.filtered_by(&String::from("m.www.imateapot.info"), vec![])
+                assert_ne!(
+                    None,
+                    filter.filtered_by(&String::from("m.www.imateapot.info"), &vec![])
                 );
-                assert_eq!(None, filter.filtered_by(&String::from("imateapot.info"), vec![]));
-                assert_eq!(None, filter.filtered_by(&String::from("org"), vec![]));
-                assert_eq!(None, filter.filtered_by(&String::from("com"), vec![]));
+                assert_eq!(None, filter.filtered_by(&String::from("imateapot.info"), &vec![]));
+                assert_eq!(None, filter.filtered_by(&String::from("org"), &vec![]));
+                assert_eq!(None, filter.filtered_by(&String::from("com"), &vec![]));
             });
     }
 
@@ -229,21 +237,22 @@ mod tests {
         vec![FilterFormat::Vector, FilterFormat::Hash, FilterFormat::Tree]
             .iter()
             .for_each(move |format| {
-                let mut filter = Filter::from_disk(FilterVersion::Test, format.clone(), PathBuf::from("./"))
+                let config = Arc::new(Mutex::new(Config{filter_version: FilterVersion::Test, filter_format: format.clone(), ..Default::default()}));
+                let mut filter = Filter::from_disk(Arc::clone(&config), PathBuf::from("./"))
                     .expect("Couldn't load filter");
 
                 assert_eq!(
                     None,
                     filter.filtered_by(
                         &String::from("imateapot.org"),
-                        vec![std::string::String::from("imateapot.org")]
+                        &vec![std::string::String::from("imateapot.org")]
                     )
                 );
                 assert_eq!(
                     None,
                     filter.filtered_by(
                         &String::from("www.imateapot.org"),
-                        vec![std::string::String::from("imateapot.org")]
+                        &vec![std::string::String::from("imateapot.org")]
                     )
                 );
             });

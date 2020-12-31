@@ -71,7 +71,6 @@ $ docker run -d --rm -v /path/to/ssl/certs:/app/ssl -p 8080:80 -p 53:53/udp --na
   - [ ] HPKE. https://tools.ietf.org/html/draft-irtf-cfrg-hpke-07
 - [ ] TCP fallbacks.
 - [ ] IPv6.
-- [ ] Allowed list could use wildcards. For example, a.com could automatically allow *.a.com.
 
 ## Cross compiling
 https://github.com/briansmith/webpki/issues/54 prevents us from using rustls which would make cross compilation much easier.
