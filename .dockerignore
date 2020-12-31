@@ -1,5 +1,5 @@
 .git
-target/
+target
 ultimate.txt
 Dockerfile
 ssl/

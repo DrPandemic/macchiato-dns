@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 extern crate lru;
 extern crate nix;
-extern crate openssl;
 extern crate reqwest;
 extern crate smartstring;
 extern crate tokio;

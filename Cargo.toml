@@ -4,18 +4,16 @@ version = "0.1.0"
 authors = ["DrPandemic <DrPandemic@users.noreply.github.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 nix = "0.16.1"
 tokio = { version = "0.2", features = ["full"] }
-reqwest = { version = "0.10", features = ["json", "brotli"] }
+reqwest = { version = "0.10", features = ["native-tls-vendored", "json", "gzip"] }
 structopt = "0.3"
 lru = "0.6.3"
-actix-web = { version = "2.0", features = ["openssl"] }
+actix-web = { version = "2.0", features = ["rustls"] }
+rustls = "0.16"
 actix-web-httpauth = "0.4.2"
 actix-files = "0.2.2"
-openssl = "0.10"
 actix-rt = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -30,3 +28,6 @@ criterion = "0.3"
 [[bench]]
 name = "filter_vector_benchmark"
 harness = false
+
+[profile.release]
+codegen-units=1

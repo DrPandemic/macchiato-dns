@@ -61,10 +61,25 @@ $ docker run -d --rm -v /path/to/ssl/certs:/app/ssl -p 8080:80 -p 53:53/udp --na
 
 ## TODO
 
-- [ ] Shouldn't block packets that failed to parse.
-- [ ] EDNS
+- [ ] Shouldn't ignore queries that failed to parse.
 - [ ] DNSSEC.
-- [ ] ODoH.
+  - [ ] Fragmented datagrams.
+    - Do we actually need it since we send the requests over HTTPS?
+    - [ ] A security-aware resolver MUST support a message size of at least 1220 octets, SHOULD support a message size of 4000 octets.
+  - [ ] EDNS.
+- [ ] ODoH. https://tools.ietf.org/html/draft-pauly-dprive-oblivious-doh-02#section-5
+  - [ ] HPKE. https://tools.ietf.org/html/draft-irtf-cfrg-hpke-07
+- [ ] TCP fallbacks.
+- [ ] IPv6.
+- [ ] Allowed list could use wildcards. For example, a.com could automatically allow *.a.com.
+
+## Cross compiling
+https://github.com/briansmith/webpki/issues/54 prevents us from using rustls which would make cross compilation much easier.
+OpenSSL makes this app more complicated to compile. This command should let you cross compile to raspberry pi.
+
+``` bash
+$ MACHINE=armv7 ARCH=arm CC=arm-linux-gnueabihf-gcc cargo build --release --target=armv7-unknown-linux-gnueabihf
+```
 
 ## Contributing
 If you think there's a missing feature, feel free to open a pull request. I will be more than happy to help you

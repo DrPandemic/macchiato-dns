@@ -117,7 +117,7 @@ impl Message {
 
     pub fn rcode(&self) -> Result<RCode, Box<dyn Error>> {
         let data: &u8 = self.buffer.get(3).ok_or(MalformedMessageError)?;
-        Ok(match (*data << 4) >> 4 as u8 {
+        Ok(match (*data << 4) >> 4_u8 {
             0b0 => RCode::NoError,
             0b1 => RCode::FormatError,
             0b10 => RCode::ServerFailure,
@@ -190,7 +190,7 @@ impl Message {
         let post_name: usize = consumed_bytes + offset;
         let rdlength = parse_u16(&self.buffer, post_name + 8)?;
         let post_header = post_name + 10;
-        // Class 41 shouldn't be parse as a RR. Maybe create a new struct for Opt?
+        // TODO: Class 41 shouldn't be parse as a RR. Maybe create a new struct for Opt?
         Ok(ResourceRecord {
             name: name,
             rdlength: rdlength,
@@ -208,7 +208,7 @@ impl Message {
 
     pub fn set_response_ttl(&mut self, ttl: u32) -> Result<(), Box<dyn Error>> {
         let data = split_u32_into_u8(ttl)?;
-        (0..self.ancount()?).fold(self.resouce_records_offset(), |maybe_offset, _| {
+        (0..self.ancount()?).fold(self.resource_records_offset(), |maybe_offset, _| {
             let offset = maybe_offset?;
             let (_, consumed_bytes) = parse_name(&self.buffer, offset)?;
             let ttl_offset: usize = consumed_bytes + offset + 4;
@@ -222,7 +222,7 @@ impl Message {
         Ok(())
     }
 
-    fn resouce_records_offset(&self) -> Result<usize, Box<dyn Error>> {
+    fn resource_records_offset(&self) -> Result<usize, Box<dyn Error>> {
         Ok(12
             + self
                 .questions()?
@@ -233,7 +233,7 @@ impl Message {
     pub fn resource_records(
         &self,
     ) -> Result<(Vec<ResourceRecord>, Vec<ResourceRecord>, Vec<ResourceRecord>), Box<dyn Error>> {
-        let question_offset = self.resouce_records_offset()?;
+        let question_offset = self.resource_records_offset()?;
         let answers = (0..self.ancount()?).fold(
             Ok((vec![], question_offset)),
             |maybe_acc: Result<(Vec<ResourceRecord>, usize), Box<dyn Error>>, _| {

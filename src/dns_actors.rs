@@ -81,13 +81,22 @@ pub fn spawn_filter_updater(
     tokio::spawn(async move {
         loop {
             if response_receiver.recv().is_ok() {
-                if let Ok(new_filter) = Filter::from_internet(Arc::clone(&config)).await {
-                    let mut filter = filter.lock().unwrap();
-                    *filter = new_filter;
+                let result = Filter::from_internet(Arc::clone(&config)).await;
+
+                match result {
+                    Ok(new_filter) => {
+                        let mut filter = filter.lock().unwrap();
+                        *filter = new_filter;
+                    },
+                    Err(err) => {
+                        let config = config.lock().unwrap();
+                        let message = format!("{}", err);
+                        log_error(&message, config.verbosity);
+                    }
                 }
             } else {
                 let config = config.lock().unwrap();
-                log_error("Failed to send back UDP packet", config.verbosity);
+                log_error("Failed to receive message to update filter", config.verbosity);
             }
         }
     });
