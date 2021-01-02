@@ -25,7 +25,7 @@ impl Default for Config {
             filter_version: FilterVersion::None,
             filter_format: FilterFormat::Tree,
             small: true,
-            verbosity: 3,
+            verbosity: 0,
             web_password_hash: String::from("asdf"),
         }
     }
@@ -33,6 +33,8 @@ impl Default for Config {
 
 impl Config {
     pub fn from_opt(opt: Opt) -> Config {
+        let mut allowed = opt.allowed.clone().unwrap_or(vec![]);
+        allowed.sort();
         Config {
             web_password_hash: get_web_password_hash(&opt),
             debug: opt.debug,
@@ -41,7 +43,7 @@ impl Config {
             filter_version: Self::filter_version(&opt.filter_version),
             filter_format: Self::filter_format(&opt.small),
             filters_path: opt.filters_path,
-            allowed_domains: opt.allowed.clone().unwrap_or(vec![]),
+            allowed_domains: allowed,
             external: opt.external,
         }
     }

@@ -84,6 +84,7 @@ async fn post_allowed_domains(domain: web::Json<Domain>, data: web::Data<AppStat
     let mut config = data.config.lock().unwrap();
 
     config.allowed_domains.push(domain.name.clone());
+    config.allowed_domains.sort();
 
     Ok("{}".to_string())
 }

@@ -65,13 +65,15 @@ impl Filter {
         }
     }
 
+
+
     pub async fn from_internet(config: Arc<Mutex<Config>>) -> Result<Filter, Box<dyn std::error::Error>> {
         let client = reqwest::Client::builder()
             .gzip(true)
             .build()?
-            .get("https://block.energized.pro/blu/formats/domains.txt");
-        let resp = client.send().await?.text().await?;
-        let buffer = io::BufReader::new(resp.as_bytes());
+            .get(get_download_url(Arc::clone(&config)));
+        let response = client.send().await?.text().await?;
+        let buffer = io::BufReader::new(response.as_bytes());
 
         Self::from_buffer(config, buffer).map_err(|e| e.into())
     }
@@ -80,11 +82,11 @@ impl Filter {
         let filter_version = &config.lock().unwrap().filter_version.clone();
         if let Some(file_name) = Filter::get_file_name(filter_version) {
             let file = File::open(path.join(file_name.to_string()))?;
-            Self::from_buffer(config, io::BufReader::new(file)).and_then(|mut filter| {
-                if let Ok(time) = fs::metadata(file_name.to_string())?.created() {
+            Self::from_buffer(config, io::BufReader::new(file)).map(|mut filter| {
+                if let Ok(Ok(time)) = fs::metadata(file_name.to_string()).map(|metadata| metadata.created()) {
                     filter.created_at = time;
                 }
-                Ok(filter)
+                filter
             })
         } else {
             Self::from_buffer(config, io::BufReader::new(empty()))
@@ -178,7 +180,8 @@ fn filtered_by(name: &String, contains: impl Fn(&String) -> Option<String>) -> O
     let parts = name.split(".").collect::<Vec<&str>>();
     (0..parts.len()).find_map(|i| {
         let name = parts.get(i..parts.len()).unwrap().join(".").into();
-        contains(&name)
+        let result = contains(&name);
+        result
     })
 }
 
@@ -189,7 +192,13 @@ fn is_name_in_allowed_list(name: &String, allowed_domains: &Vec<std::string::Str
             .ok()
             .map(|_| String::from(""))
     }).is_some()
-   // hash.get(name).map(|name| name.clone()))
+}
+
+fn get_download_url(config: Arc<Mutex<Config>>) -> &'static str {
+    match config.lock().unwrap().filter_version {
+        FilterVersion::Ultimate => "https://block.energized.pro/ultimate/formats/domains.txt",
+        _ => "https://block.energized.pro/blu/formats/domains.txt",
+    }
 }
 
 #[cfg(test)]
@@ -240,20 +249,19 @@ mod tests {
                 let config = Arc::new(Mutex::new(Config{filter_version: FilterVersion::Test, filter_format: format.clone(), ..Default::default()}));
                 let mut filter = Filter::from_disk(Arc::clone(&config), PathBuf::from("./"))
                     .expect("Couldn't load filter");
+                let allowed = vec![
+                    std::string::String::from("bar.com"),
+                    std::string::String::from("foo.com"),
+                    std::string::String::from("imateapot.org"),
+                ];
 
                 assert_eq!(
                     None,
-                    filter.filtered_by(
-                        &String::from("imateapot.org"),
-                        &vec![std::string::String::from("imateapot.org")]
-                    )
+                    filter.filtered_by(&String::from("imateapot.org"), &allowed)
                 );
                 assert_eq!(
                     None,
-                    filter.filtered_by(
-                        &String::from("www.imateapot.org"),
-                        &vec![std::string::String::from("imateapot.org")]
-                    )
+                    filter.filtered_by(&String::from("www.imateapot.org"), &allowed)
                 );
             });
     }
