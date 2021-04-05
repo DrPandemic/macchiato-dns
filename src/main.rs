@@ -4,6 +4,7 @@ extern crate nix;
 extern crate reqwest;
 extern crate smartstring;
 extern crate tokio;
+extern crate toml;
 
 use std::str;
 use std::sync::{Arc, Mutex};
@@ -42,7 +43,7 @@ const DEFAULT_INTERNAL_ADDRESS_DEBUG: &str = "127.0.0.1:5553";
 
 #[tokio::main]
 async fn main() {
-    let config = Config::from_opt(Opt::from_args());
+    let config = Config::from_opt(Opt::from_args()).expect("Failed to read configuration file");
     let verbosity = config.verbosity;
     let socket = UdpSocket::bind(if config.debug {
         DEFAULT_INTERNAL_ADDRESS_DEBUG

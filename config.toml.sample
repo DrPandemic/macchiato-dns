@@ -1,0 +1,8 @@
+allowed_domains = []
+debug = false
+external = true
+filters_path = "./"
+filter_version = "Blu"
+small = true
+verbosity = 0
+#web_password = "superpassword"

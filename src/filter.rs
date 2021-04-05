@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::filter_statistics::*;
 use crate::tree::*;
+use serde::{Deserialize, Serialize};
 use smartstring::alias::String;
 use std::collections::HashSet;
 use std::fs::File;
@@ -10,7 +11,7 @@ use std::time::SystemTime;
 use std::sync::{Arc, Mutex};
 use std::fs;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum FilterVersion {
     None,
     Blu,
@@ -18,11 +19,15 @@ pub enum FilterVersion {
     Test,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum FilterFormat {
     Vector,
     Hash,
     Tree,
+}
+
+impl Default for FilterFormat {
+    fn default() -> Self { FilterFormat::Vector }
 }
 
 pub struct Filter {

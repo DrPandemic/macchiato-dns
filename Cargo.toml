@@ -21,6 +21,7 @@ futures = "0.3.5"
 smartstring = "0.2.2"
 rand = "0.7"
 bcrypt = "0.8"
+toml = "0.5"
 
 [dev-dependencies]
 criterion = "0.3"

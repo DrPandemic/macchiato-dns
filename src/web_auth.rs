@@ -1,4 +1,3 @@
-use crate::cli::Opt;
 use crate::web::AppState;
 
 use actix_web::{dev::ServiceRequest, error, Error};
@@ -27,12 +26,8 @@ pub async fn validator(req: ServiceRequest, credentials: BearerAuth) -> Result<S
     }
 }
 
-pub fn get_web_password_hash(opt: &Opt) -> String {
-    let password = opt
-        .web_password
-        .as_ref()
-        .map(|password| password.to_string())
-        .unwrap_or_else(|| thread_rng().sample_iter(&Alphanumeric).take(30).collect());
+pub fn get_web_password_hash(maybe_password: Option<String>) -> String {
+    let password = maybe_password.unwrap_or_else(|| thread_rng().sample_iter(&Alphanumeric).take(30).collect());
 
     println!("The web password is {}", password);
 

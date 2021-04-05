@@ -61,6 +61,9 @@ $ docker run -d --rm -v /path/to/ssl/certs:/app/ssl -p 8080:80 -p 53:53/udp --na
 
 ## TODO
 
+- [ ] Config file.
+- [ ] Add a way to see what was the latest blocked domain.
+- [ ] Auto update block list.
 - [ ] Shouldn't ignore queries that failed to parse.
 - [ ] DNSSEC.
   - [ ] Fragmented datagrams.
@@ -68,7 +71,10 @@ $ docker run -d --rm -v /path/to/ssl/certs:/app/ssl -p 8080:80 -p 53:53/udp --na
     - [ ] A security-aware resolver MUST support a message size of at least 1220 octets, SHOULD support a message size of 4000 octets.
   - [ ] EDNS.
 - [ ] ODoH. https://tools.ietf.org/html/draft-pauly-dprive-oblivious-doh-02#section-5
+  - https://blog.cloudflare.com/oblivious-dns/
+  - https://github.com/cloudflare/odoh-client-rs/blob/master/src/dns_utils.rs
   - [ ] HPKE. https://tools.ietf.org/html/draft-irtf-cfrg-hpke-07
+    - https://docs.rs/hpke/0.3.1/hpke/index.html
 - [ ] TCP fallbacks.
 - [ ] IPv6.
 
