@@ -2,7 +2,8 @@ use crate::cli::Opt;
 use crate::filter::{FilterVersion, FilterFormat};
 use crate::web_auth::get_web_password_hash;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
+use std::error::Error;
+use std::fs;
 use std::io::prelude::*;
 use std::path::PathBuf;
 
@@ -21,7 +22,7 @@ pub struct Config {
     pub web_password_hash: String,
 
     #[serde(skip_deserializing, skip_serializing)]
-    pub configuration: PathBuf,
+    pub configuration_path: PathBuf,
     #[serde(skip_deserializing, skip_serializing)]
     pub debug: bool,
     #[serde(skip_deserializing, skip_serializing)]
@@ -41,7 +42,7 @@ impl Default for Config {
             verbosity: 0,
             web_password: None,
             web_password_hash: String::from("abcd"),
-            configuration: PathBuf::from("./config.toml")
+            configuration_path: PathBuf::from("./config.toml")
         }
     }
 }
@@ -49,11 +50,12 @@ impl Default for Config {
 impl Config {
     pub fn from_opt(opt: Opt) -> Result<Config, std::io::Error> {
         let mut config_toml = String::new();
-        let mut file = File::open(&opt.configuration)?;
+        let mut file = fs::File::open(&opt.configuration)?;
         file.read_to_string(&mut config_toml)?;
 
         let mut config: Config = toml::from_str(&config_toml)?;
 
+        config.configuration_path = opt.configuration;
         config.debug = opt.debug;
         config.web_password_hash = get_web_password_hash(config.web_password.clone());
         config.filter_format = if config.small {
@@ -65,9 +67,9 @@ impl Config {
         Ok(config)
     }
 
-    // async pub fn save(&self) {
-
-    // }
+    pub fn save(&self) -> Result<(), Box<dyn Error>> {
+        Ok(fs::write(self.configuration_path.clone(), toml::to_string(&self)?)?)
+    }
 }
 
 #[cfg(test)]

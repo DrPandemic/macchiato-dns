@@ -85,8 +85,12 @@ async fn post_allowed_domains(domain: web::Json<Domain>, data: web::Data<AppStat
 
     config.allowed_domains.push(domain.name.clone());
     config.allowed_domains.sort();
+    let saved = config.save();
 
-    Ok("{}".to_string())
+    match saved {
+        Err(err) => Err(error::ErrorInternalServerError(err)),
+        _ => Ok("{}".to_string())
+    }
 }
 
 #[post("/update-filter")]
