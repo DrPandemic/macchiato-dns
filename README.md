@@ -61,7 +61,6 @@ $ docker run -d --rm -v /path/to/ssl/certs:/app/ssl -p 8080:80 -p 53:53/udp --na
 
 ## TODO
 
-- [ ] Config file.
 - [ ] Add a way to see what was the latest blocked domain.
 - [ ] Auto update block list.
 - [ ] Shouldn't ignore queries that failed to parse.

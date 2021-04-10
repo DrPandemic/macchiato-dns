@@ -62,7 +62,7 @@ function showMain() {
 function showStatistics() {
     return getFilter().then(filter => {
         let entries = Object.entries(filter.statistics.data.data);
-        entries.sort((a, b) => a[1] - b[1]);
+        entries.sort((a, b) => a[1][1] - b[1][1]);
         const table = document.getElementById('statistics');
         table.innerHTML = '';
 
@@ -70,8 +70,10 @@ function showStatistics() {
             const row = table.insertRow(0);
             const cell0 = row.insertCell(0);
             const cell1 = row.insertCell(1);
+            const cell2 = row.insertCell(2);
             cell0.innerHTML = entry[0];
-            cell1.innerHTML = entry[1];
+            cell1.innerHTML = entry[1][0];
+            cell2.innerText = new Date(entry[1][1].secs_since_epoch * 1000).toLocaleString();
         }
 
         document.getElementById('filter-size').innerText = `${filter.size} entries`;

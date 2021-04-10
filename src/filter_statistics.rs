@@ -1,26 +1,26 @@
 use lru::LruCache;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use smartstring::{LazyCompact, SmartString};
-use std::collections::HashMap;
+use std::{collections::HashMap, time::SystemTime};
 
 type CompactString = SmartString<LazyCompact>;
 
 pub struct FilterStatistics {
-    pub data: LruCache<CompactString, u32>,
+    pub data: LruCache<CompactString, (u32, SystemTime)>,
 }
 
 #[derive(serde::Serialize)]
 pub struct SerializableFilterStatistics {
-    pub data: HashMap<String, u32>,
+    pub data: HashMap<String, (u32, SystemTime)>,
 }
 
 impl SerializableFilterStatistics {
     fn from_filter_statistics(statistics: &FilterStatistics) -> SerializableFilterStatistics {
-        let mut data: HashMap<String, u32> = HashMap::new();
+        let mut data: HashMap<String, (u32, SystemTime)> = HashMap::new();
         for (k, v) in statistics.data.iter() {
             data.insert(k.clone().into(), v.clone());
         }
-        SerializableFilterStatistics { data: data }
+        SerializableFilterStatistics { data }
     }
 }
 
@@ -33,10 +33,10 @@ impl FilterStatistics {
 
     pub fn increment(&mut self, name: &CompactString) {
         let count = match self.data.get(name) {
-            Some(count) => count + 1,
+            Some((count, _)) => count + 1,
             None => 1,
         };
-        self.data.put(name.clone().into(), count);
+        self.data.put(name.clone().into(), (count, SystemTime::now()));
     }
 }
 

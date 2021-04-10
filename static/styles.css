@@ -62,12 +62,25 @@ table {
 }
 
 table td:nth-child(1) {
-    width: 60%;
+    width: 33%;
     word-break: break-all;
 }
 
 table td:nth-child(2) {
-    width: 40%;
+    width: 33%;
+}
+
+table td:nth-child(3) {
+    width: 33%;
+}
+
+#allowed-domains td:nth-child(1) {
+    width: 70%;
+    word-break: break-all;
+}
+
+#allowed-domains td:nth-child(2) {
+    width: 30%;
 }
 
 tbody tr:nth-child(odd) {
