@@ -85,6 +85,14 @@ OpenSSL makes this app more complicated to compile. This command should let you 
 $ MACHINE=armv7 ARCH=arm CC=arm-linux-gnueabihf-gcc cargo build --release --target=armv7-unknown-linux-gnueabihf
 ```
 
+### Building the ARM docker image
+
+```bash
+$ docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+$ MACHINE=armv7 ARCH=arm CC=arm-linux-gnueabihf-gcc cargo build --release --target=armv7-unknown-linux-gnueabihf && yes | cp -f target/armv7-unknown-linux-gnueabihf/release/dns tmp/dns && docker build . -t drpandemic/macchiato-dns
+$ docker push drpandemic/macchiato-dns
+```
+
 ## Contributing
 If you think there's a missing feature, feel free to open a pull request. I will be more than happy to help you
 contribute.

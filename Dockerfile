@@ -1,4 +1,4 @@
-FROM arm32v7/rust:latest
+FROM arm32v7/debian:bullseye-slim
 
 WORKDIR /app
 
