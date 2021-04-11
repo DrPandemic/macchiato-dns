@@ -11,11 +11,25 @@ import {
 
 const NSEC_PER_SEC = 1000000000;
 let filter_created_at;
+let filtered = [];
+let filteredOrder = ['updated_at', 'desc'];
+let latestFilter;
 
 document.getElementById('login-button').addEventListener('click', main);
 document.getElementById('reload').addEventListener('click', main);
 document.getElementById('add-domain-name-button').addEventListener('click', addAllowedDomain);
 document.getElementById('update-filter').addEventListener('click', updateFilter);
+
+document.getElementById('count').addEventListener('click', () => {
+    filteredOrder[0] = 'count';
+    filteredOrder[1] = filteredOrder[1] === 'asc' ? 'desc' : 'asc';
+    displayFiltered(filtered);
+});
+document.getElementById('updated-at').addEventListener('click', () => {
+    filteredOrder[0] = 'updated_at';
+    filteredOrder[1] = filteredOrder[1] === 'asc' ? 'desc' : 'asc';
+    displayFiltered(filtered);
+});
 
 document.getElementById('login-password').addEventListener('keyup', function(event) {
     if (event.keyCode === 13) {
@@ -59,26 +73,39 @@ function showMain() {
     return Promise.resolve();
 }
 
+function displayFiltered(entries) {
+    if (filteredOrder[0] === 'updated_at' && filteredOrder[1] === 'desc') {
+        filtered.sort((a, b) => new Date(a[1][1].secs_since_epoch * 1000) - new Date(b[1][1].secs_since_epoch * 1000));
+    } else if (filteredOrder[0] === 'updated_at' && filteredOrder[1] === 'asc') {
+        filtered.sort((a, b) => new Date(b[1][1].secs_since_epoch * 1000) - new Date(a[1][1].secs_since_epoch * 1000));
+    } else if (filteredOrder[0] === 'count' && filteredOrder[1] === 'desc') {
+        filtered.sort((a, b) => a[1][0] - b[1][0]);
+    } else {
+        filtered.sort((a, b) => b[1][0] - a[1][0]);
+    }
+    const table = document.getElementById('statistics');
+    table.innerHTML = '';
+
+    for(const entry of entries) {
+        const row = table.insertRow(0);
+        const cell0 = row.insertCell(0);
+        const cell1 = row.insertCell(1);
+        const cell2 = row.insertCell(2);
+        cell0.innerHTML = entry[0];
+        cell1.innerHTML = entry[1][0];
+        cell2.innerText = new Date(entry[1][1].secs_since_epoch * 1000).toLocaleString();
+    }
+
+    document.getElementById('filter-size').innerText = `${latestFilter.size} entries`;
+    document.getElementById('filter-created-at').innerText = new Date(latestFilter.created_at.secs_since_epoch * 1000);
+    filter_created_at = latestFilter.created_at.secs_since_epoch;
+}
+
 function showStatistics() {
     return getFilter().then(filter => {
-        let entries = Object.entries(filter.statistics.data.data);
-        entries.sort((a, b) => a[1][1] - b[1][1]);
-        const table = document.getElementById('statistics');
-        table.innerHTML = '';
-
-        for(const entry of entries) {
-            const row = table.insertRow(0);
-            const cell0 = row.insertCell(0);
-            const cell1 = row.insertCell(1);
-            const cell2 = row.insertCell(2);
-            cell0.innerHTML = entry[0];
-            cell1.innerHTML = entry[1][0];
-            cell2.innerText = new Date(entry[1][1].secs_since_epoch * 1000).toLocaleString();
-        }
-
-        document.getElementById('filter-size').innerText = `${filter.size} entries`;
-        document.getElementById('filter-created-at').innerText = new Date(filter.created_at.secs_since_epoch * 1000);
-        filter_created_at = filter.created_at.secs_since_epoch;
+        latestFilter = filter;
+        filtered = Object.entries(filter.statistics.data.data);
+        displayFiltered(filtered);
 
         return Promise.resolve();
     });

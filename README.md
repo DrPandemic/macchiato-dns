@@ -61,8 +61,9 @@ $ docker run -d --rm -v /path/to/ssl/certs:/app/ssl -p 8080:80 -p 53:53/udp --na
 
 ## TODO
 
-- [ ] Add a way to see what was the latest blocked domain.
 - [ ] Auto update block list.
+- [ ] Add host -> IP static mappins
+- [ ] Prefetch some DNS queries that will probably be asked
 - [ ] Shouldn't ignore queries that failed to parse.
 - [ ] DNSSEC.
   - [ ] Fragmented datagrams.

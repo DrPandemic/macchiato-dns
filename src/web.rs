@@ -109,7 +109,12 @@ async fn delete_allowed_domains(domain: web::Json<Domain>, data: web::Data<AppSt
 
     config.allowed_domains.retain(|d| d != &domain.name.clone());
 
-    Ok("{}".to_string())
+    let saved = config.save();
+
+    match saved {
+        Err(err) => Err(error::ErrorInternalServerError(err)),
+        _ => Ok("{}".to_string())
+    }
 }
 
 pub async fn start_web(
