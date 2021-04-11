@@ -16,7 +16,7 @@ pub struct Config {
     pub small: bool,
     pub verbosity: u8,
 
-    web_password: Option<String>,
+    pub web_password: Option<String>,
 
     #[serde(skip_deserializing, skip_serializing)]
     pub web_password_hash: String,
@@ -69,15 +69,5 @@ impl Config {
 
     pub fn save(&self) -> Result<(), Box<dyn Error>> {
         Ok(fs::write(self.configuration_path.clone(), toml::to_string(&self)?)?)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::{thread, time};
-
-    #[test]
-    fn test_can_merge() {
     }
 }

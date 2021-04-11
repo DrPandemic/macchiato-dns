@@ -63,7 +63,9 @@ mod tests {
         stats.increment(&String::from("imateapot.org").into());
         stats.increment(&String::from("imateapot.info").into());
         stats.increment(&String::from("imateapot.org").into());
-        assert_eq!(Some(&2u32), stats.data.get(&CompactString::from("imateapot.org")));
-        assert_eq!(Some(&1u32), stats.data.get(&CompactString::from("imateapot.info")));
+        let (a, _) = stats.data.get(&CompactString::from("imateapot.org")).unwrap();
+        assert_eq!(&2u32, a);
+        let (b, _) = stats.data.get(&CompactString::from("imateapot.info")).unwrap();
+        assert_eq!(&1u32, b);
     }
 }

@@ -62,8 +62,7 @@ $ docker run -d --rm -v /path/to/ssl/certs:/app/ssl -p 8080:80 -p 53:53/udp --na
 ## TODO
 
 - [ ] Auto update block list.
-- [ ] Add host -> IP static mappins
-- [ ] Prefetch some DNS queries that will probably be asked
+- [ ] Add host -> IP static mappings
 - [ ] Shouldn't ignore queries that failed to parse.
 - [ ] DNSSEC.
   - [ ] Fragmented datagrams.

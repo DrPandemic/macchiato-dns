@@ -117,10 +117,24 @@ pub fn spawn_remote_dns_query(
         } else {
             return;
         };
-        let (should_cache, remote_answer) = if let Some(cached) = cached {
+        let (should_cache, remote_answer) = if let Some((cached, cache_time_left)) = cached {
             if verbosity > 0 {
                 println!("{:?} was served from cache", cached.name());
             }
+
+            if cache_time_left.as_secs() < 30 {
+                let cache = Arc::clone(&cache);
+                tokio::spawn(async move {
+                    let resolver = resolver_manager.lock().unwrap().get_resolver();
+                    if let Ok(result) = query_remote_dns_server_doh(resolver, query).await {
+                        cache.lock().unwrap().put(&result);
+                        if verbosity > 1 {
+                            println!("{:?} was prefetched", result.name());
+                        }
+                    }
+                });
+            }
+
             (false, cached)
         } else if filter_query(filter, config, &query, verbosity) {
             if let Ok(response) = generate_deny_response(&query) {

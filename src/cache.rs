@@ -58,7 +58,7 @@ impl Cache {
         self.data.len()
     }
 
-    pub fn get(&mut self, query: &Message) -> Option<Message> {
+    pub fn get(&mut self, query: &Message) -> Option<(Message, Duration)> {
         let question = query.question().ok()?;
         let key = (question.qname().ok()?.join("."), question.qtype().ok()?);
         let (time, message) = self.data.get(&key)?;
@@ -67,11 +67,12 @@ impl Cache {
         if now.cmp(&response_ttl) == Ordering::Less {
             let mut cached = (*message).clone();
             cached.set_id(query.id().ok()?).ok()?;
+            let diff = response_ttl.duration_since(now).ok()?;
             if cached
-                .set_response_ttl(response_ttl.duration_since(now).ok()?.as_secs() as u32)
+                .set_response_ttl(diff.as_secs() as u32)
                 .is_ok()
             {
-                Some(cached)
+                Some((cached, diff))
             } else {
                 None
             }
@@ -137,12 +138,13 @@ mod tests {
         let mut cache = Cache::new();
         cache.put(&answer).unwrap();
         thread::sleep(time::Duration::from_secs(1));
-        let cached = cache.get(&question).unwrap();
+        let (cached, time_left) = cache.get(&question).unwrap();
         assert_eq!(question.id().unwrap(), cached.id().unwrap());
 
         let in_ttl = answer.resource_records().unwrap().0[0].ttl;
         let out_ttl = cached.resource_records().unwrap().0[0].ttl;
 
         assert!(in_ttl > out_ttl);
+        assert!(time_left.as_millis() > 500);
     }
 }
