@@ -74,6 +74,9 @@ function showMain() {
 }
 
 function displayFiltered(entries) {
+    document.getElementById('count').innerText = 'Count ';
+    document.getElementById('updated-at').innerText = 'Updated at ';
+
     if (filteredOrder[0] === 'updated_at' && filteredOrder[1] === 'desc') {
         filtered.sort((a, b) => new Date(a[1][1].secs_since_epoch * 1000) - new Date(b[1][1].secs_since_epoch * 1000));
     } else if (filteredOrder[0] === 'updated_at' && filteredOrder[1] === 'asc') {
@@ -83,6 +86,14 @@ function displayFiltered(entries) {
     } else {
         filtered.sort((a, b) => b[1][0] - a[1][0]);
     }
+
+    const image = document.createElement('img');
+    image.src = filteredOrder[1] === 'desc' ? 'icons/caret-down-solid.svg' : 'icons/caret-up-solid.svg';
+    image.className = 'remove-icon';
+    const element = filteredOrder[0] === 'updated_at' ? document.getElementById('updated-at') :
+        document.getElementById('count');
+    element.appendChild(image);
+
     const table = document.getElementById('statistics');
     table.innerHTML = '';
 
