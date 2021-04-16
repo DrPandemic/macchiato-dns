@@ -10,6 +10,7 @@ use std::path::PathBuf;
 #[derive(Deserialize, Serialize)]
 pub struct Config {
     pub allowed_domains: Vec<String>,
+    pub auto_update: Option<u64>,
     pub external: bool,
     pub filters_path: Option<PathBuf>,
     pub filter_version: FilterVersion,
@@ -19,30 +20,30 @@ pub struct Config {
     pub web_password: Option<String>,
 
     #[serde(skip_deserializing, skip_serializing)]
-    pub web_password_hash: String,
-
-    #[serde(skip_deserializing, skip_serializing)]
     pub configuration_path: PathBuf,
     #[serde(skip_deserializing, skip_serializing)]
     pub debug: bool,
     #[serde(skip_deserializing, skip_serializing)]
     pub filter_format: FilterFormat,
+    #[serde(skip_deserializing, skip_serializing)]
+    pub web_password_hash: String,
 }
 
 impl Default for Config {
     fn default() -> Config {
         Config {
             allowed_domains: vec![],
+            auto_update: None,
+            configuration_path: PathBuf::from("./config.toml"),
             debug: true,
             external: true,
             filters_path: Some(PathBuf::from("./")),
-            filter_version: FilterVersion::Blu,
             filter_format: FilterFormat::Vector,
+            filter_version: FilterVersion::Blu,
             small: true,
             verbosity: 0,
             web_password: None,
             web_password_hash: String::from("abcd"),
-            configuration_path: PathBuf::from("./config.toml")
         }
     }
 }

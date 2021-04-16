@@ -122,7 +122,7 @@ pub async fn start_web(
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
-    filter_update_channel: Sender<()>,
+    filter_update_channel: Arc<Mutex<Sender<()>>>,
 ) -> std::io::Result<()> {
     let address = {
         let locked_config = config.lock().unwrap();
@@ -135,13 +135,7 @@ pub async fn start_web(
         }
     };
 
-    let state = web::Data::new(AppState {
-        filter: filter,
-        cache: cache,
-        instrumentation_log: instrumentation_log,
-        config: config,
-        filter_update_channel: Arc::new(Mutex::new(filter_update_channel)),
-    });
+    let state = web::Data::new(AppState { filter, cache, instrumentation_log, config, filter_update_channel });
 
     let local = tokio::task::LocalSet::new();
     let sys = actix_rt::System::run_in_tokio("server", &local);

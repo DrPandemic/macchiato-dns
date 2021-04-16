@@ -7,10 +7,12 @@ use crate::message::*;
 use crate::network::*;
 use crate::resolver_manager::ResolverManager;
 
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
 use std::sync::mpsc::{Sender, channel};
 use std::sync::{Arc, Mutex};
+
 use tokio::net::udp::{RecvHalf, SendHalf};
+use tokio::time::delay_for;
 
 pub fn spawn_responder(
     socket: SendHalf,
@@ -85,6 +87,7 @@ pub fn spawn_filter_updater(
 
                 match result {
                     Ok(new_filter) => {
+                        println!("updating");
                         let mut filter = filter.lock().unwrap();
                         *filter = new_filter;
                     },
@@ -102,4 +105,24 @@ pub fn spawn_filter_updater(
     });
 
     return response_sender;
+}
+
+pub fn spawn_filter_updater_ticker(
+    config: Arc<Mutex<Config>>,
+    filter_update_channel: Arc<Mutex<Sender<()>>>,
+) {
+    tokio::spawn(async move {
+        loop {
+            if config.lock().unwrap().auto_update.is_none() {
+                return;
+            }
+
+            if filter_update_channel.lock().unwrap().send(()).is_err() {
+                return;
+            }
+
+            let auto_update = config.lock().unwrap().auto_update.unwrap().clone();
+            delay_for(Duration::from_secs(60 * 60 * auto_update)).await;
+        }
+    });
 }

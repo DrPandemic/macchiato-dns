@@ -6,3 +6,4 @@ filter_version = "Blu"
 small = true
 verbosity = 0
 #web_password = "superpassword"
+#auto_update = 168 # 1 week

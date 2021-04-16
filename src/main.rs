@@ -78,8 +78,11 @@ async fn main() {
         Arc::clone(&config),
         verbosity,
     );
-    let filter_update_channel = spawn_filter_updater(Arc::clone(&filter), Arc::clone(&config));
-    start_web(Arc::clone(&config), filter, cache, instrumentation_log, filter_update_channel)
+
+    let filter_update_channel = Arc::new(Mutex::new(spawn_filter_updater(Arc::clone(&filter), Arc::clone(&config))));
+    spawn_filter_updater_ticker(Arc::clone(&config), Arc::clone(&filter_update_channel));
+
+    start_web(Arc::clone(&config), filter, cache, instrumentation_log, Arc::clone(&filter_update_channel))
         .await
         .unwrap();
 }
