@@ -4,6 +4,8 @@ import {
     getInstrumentation,
     getPassword,
     getAllowedDomains,
+    getAutoUpdateFilter,
+    postAutoUpdateFilter,
     postAllowedDomains,
     postUpdateFilter,
     deleteAllowedDomains,
@@ -19,6 +21,8 @@ document.getElementById('login-button').addEventListener('click', main);
 document.getElementById('reload').addEventListener('click', main);
 document.getElementById('add-domain-name-button').addEventListener('click', addAllowedDomain);
 document.getElementById('update-filter').addEventListener('click', updateFilter);
+document.getElementById('auto-update-button').addEventListener('click', updateAutoUpdateFilter);
+document.getElementById('auto-update-checkbox').addEventListener('change', toggleAutoUpdateTextbox);
 
 document.getElementById('count').addEventListener('click', () => {
     filteredOrder[0] = 'count';
@@ -55,6 +59,7 @@ function main() {
         .then(showCache)
         .then(showInstrumentation)
         .then(showAllowedDomains)
+        .then(showAutoUpdate)
         .catch(e => {
             alert(e);
             document.getElementById('login-container').style.display = 'block';
@@ -110,6 +115,21 @@ function displayFiltered(entries) {
     document.getElementById('filter-size').innerText = `${latestFilter.size} entries`;
     document.getElementById('filter-created-at').innerText = new Date(latestFilter.created_at.secs_since_epoch * 1000);
     filter_created_at = latestFilter.created_at.secs_since_epoch;
+}
+
+async function showAutoUpdate() {
+    return getAutoUpdateFilter().then(autoUpdate => {
+        const checkbox = document.getElementById('auto-update-checkbox');
+        const text = document.getElementById('auto-update-value');
+        if(!autoUpdate) {
+            checkbox.checked = false;
+        } else {
+            checkbox.checked = true;
+            text.value = autoUpdate;
+        }
+
+        toggleAutoUpdateTextbox();
+    })
 }
 
 function showStatistics() {
@@ -238,4 +258,27 @@ function updateFilter() {
         });
     };
     return postUpdateFilter().then(showStatistics).then(checkFilter);
+}
+
+function updateAutoUpdateFilter() {
+    let value = null;
+    if(document.getElementById('auto-update-checkbox').checked) {
+        value = parseInt(document.getElementById('auto-update-value').value);
+    }
+    const button = document.getElementById('auto-update-button');
+    button.disabled = true;
+    return postAutoUpdateFilter(value)
+        .then(result => {
+            console.log(result);
+            button.disabled = false;
+        })
+}
+
+function toggleAutoUpdateTextbox() {
+    const textbox = document.getElementById('auto-update-value');
+    if (document.getElementById('auto-update-checkbox').checked) {
+        textbox.style = '';
+    } else {
+        textbox.style = 'display: none';
+    }
 }

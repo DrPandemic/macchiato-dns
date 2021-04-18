@@ -117,6 +117,32 @@ async fn delete_allowed_domains(domain: web::Json<Domain>, data: web::Data<AppSt
     }
 }
 
+#[get("/auto-update-filter")]
+async fn get_auto_update_filter(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
+    let config = data.config.lock().unwrap();
+    let body = serde_json::to_string(&config.auto_update).unwrap();
+
+    Ok(HttpResponse::Ok().content_type("application/json").body(body))
+}
+
+#[derive(Deserialize)]
+struct AutoUpdate {
+    auto_update: Option<u64>,
+}
+
+#[post("/auto-update-filter")]
+async fn post_auto_update_filter(auto_udapte: web::Json<AutoUpdate>, data: web::Data<AppState>) -> actix_web::Result<String> {
+    let mut config = data.config.lock().unwrap();
+    config.auto_update = auto_udapte.auto_update;
+
+    let saved = config.save();
+
+    match saved {
+        Err(err) => Err(error::ErrorInternalServerError(err)),
+        _ => Ok("{}".to_string())
+    }
+}
+
 pub async fn start_web(
     config: Arc<Mutex<Config>>,
     filter: Arc<Mutex<Filter>>,
@@ -158,6 +184,8 @@ pub async fn start_web(
                     .service(get_filter)
                     .service(get_instrumentation)
                     .service(get_allowed_domains)
+                    .service(get_auto_update_filter)
+                    .service(post_auto_update_filter)
                     .service(post_allowed_domains)
                     .service(post_update_filter)
                     .service(delete_allowed_domains),

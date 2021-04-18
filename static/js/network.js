@@ -47,10 +47,19 @@ export function getAllowedDomains() {
     return doCall('allowed-domains');
 }
 
+export function getAutoUpdateFilter() {
+    return doCall('auto-update-filter');
+}
+
 export function postAllowedDomains(domain) {
     return doCall('allowed-domains', 'POST', { name: domain });
 }
 
 export function deleteAllowedDomains(domain) {
     return doCall('allowed-domains', 'DELETE', { name: domain });
+}
+
+
+export function postAutoUpdateFilter(autoUpdate) {
+    return doCall('auto-update-filter', 'POST', { auto_update: autoUpdate });
 }

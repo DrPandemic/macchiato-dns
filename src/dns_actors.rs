@@ -7,6 +7,7 @@ use crate::message::*;
 use crate::network::*;
 use crate::resolver_manager::ResolverManager;
 
+use std::cmp;
 use std::{net::SocketAddr, time::Duration};
 use std::sync::mpsc::{Sender, channel};
 use std::sync::{Arc, Mutex};
@@ -87,7 +88,6 @@ pub fn spawn_filter_updater(
 
                 match result {
                     Ok(new_filter) => {
-                        println!("updating");
                         let mut filter = filter.lock().unwrap();
                         *filter = new_filter;
                     },
@@ -114,15 +114,20 @@ pub fn spawn_filter_updater_ticker(
     tokio::spawn(async move {
         loop {
             if config.lock().unwrap().auto_update.is_none() {
-                return;
+                delay_for(Duration::from_secs(60 * 60)).await;
             }
 
             if filter_update_channel.lock().unwrap().send(()).is_err() {
                 return;
             }
 
+            if config.lock().unwrap().auto_update.is_none() {
+                continue;
+            }
+
             let auto_update = config.lock().unwrap().auto_update.unwrap().clone();
-            delay_for(Duration::from_secs(60 * 60 * auto_update)).await;
+            println!("{}", auto_update);
+            delay_for(Duration::from_secs(cmp::max(60 * 60 * auto_update, 60 * 60))).await;
         }
     });
 }

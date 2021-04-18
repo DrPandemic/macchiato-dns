@@ -1,4 +1,5 @@
 allowed_domains = []
+auto_update = 168 # 1 week
 debug = false
 external = true
 filters_path = "./"
@@ -6,4 +7,3 @@ filter_version = "Blu"
 small = true
 verbosity = 0
 #web_password = "superpassword"
-#auto_update = 168 # 1 week
