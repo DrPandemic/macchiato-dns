@@ -126,7 +126,6 @@ pub fn spawn_filter_updater_ticker(
             }
 
             let auto_update = config.lock().unwrap().auto_update.unwrap().clone();
-            println!("{}", auto_update);
             delay_for(Duration::from_secs(cmp::max(60 * 60 * auto_update, 60 * 60))).await;
         }
     });

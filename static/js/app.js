@@ -275,10 +275,10 @@ function updateAutoUpdateFilter() {
 }
 
 function toggleAutoUpdateTextbox() {
-    const textbox = document.getElementById('auto-update-value');
+    const container = document.getElementById('auto-update-div');
     if (document.getElementById('auto-update-checkbox').checked) {
-        textbox.style = '';
+        container.style = '';
     } else {
-        textbox.style = 'display: none';
+        container.style = 'display: none';
     }
 }
