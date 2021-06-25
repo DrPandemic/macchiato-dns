@@ -13,5 +13,11 @@ COPY ./blu.txt ./
 COPY ./src ./src
 RUN cargo build --release
 
+FROM arm32v7/alpine
+
+WORKDIR /app
+RUN mkdir -p /app/target/release
+COPY --from=0 /app/target/release/dns /app/target/release/dns
+
 EXPOSE 53/udp
 ENTRYPOINT ["./target/release/dns"]
