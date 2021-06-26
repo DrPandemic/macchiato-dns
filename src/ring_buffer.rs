@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-#[derive(serde::Serialize)]
+#[derive(Clone, serde::Serialize)]
 pub struct RingBuffer<T>
 where
     T: Clone,

@@ -14,9 +14,9 @@ pub struct Instrumentation {
     pub request_received: Option<SystemTime>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(Clone, serde::Serialize)]
 pub struct InstrumentationLog {
-    data: RingBuffer<Instrumentation>,
+    pub data: RingBuffer<Instrumentation>,
 }
 
 impl Instrumentation {

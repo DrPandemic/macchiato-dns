@@ -4,9 +4,10 @@ use crate::filter::Filter;
 use crate::instrumentation::*;
 use crate::web_auth::validator;
 use crate::filter_statistics::FilterStatistics;
+use crate::prometheus::metrics;
 
 use actix_files as fs;
-use actix_web::{delete, get, post, web, error, App, Error, HttpResponse, HttpServer};
+use actix_web::{delete, get, post, web, error, middleware, App, Error, HttpResponse, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use rustls::internal::pemfile::{certs, pkcs8_private_keys};
 use rustls::{NoClientAuth, ServerConfig};
@@ -24,7 +25,7 @@ const DEFAULT_EXTERNAL_ADDRESS: &str = "0.0.0.0:80";
 pub struct AppState {
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
-    instrumentation_log: Arc<Mutex<InstrumentationLog>>,
+    pub instrumentation_log: Arc<Mutex<InstrumentationLog>>,
     pub config: Arc<Mutex<Config>>,
     pub filter_update_channel: Arc<Mutex<Sender<()>>>,
 }
@@ -177,6 +178,7 @@ pub async fn start_web(
         let auth = HttpAuthentication::bearer(validator);
         App::new()
             .app_data(state.clone())
+            .wrap(middleware::Compress::default())
             .service(
                 web::scope("/api/1")
                     .wrap(auth)
@@ -188,7 +190,8 @@ pub async fn start_web(
                     .service(post_auto_update_filter)
                     .service(post_allowed_domains)
                     .service(post_update_filter)
-                    .service(delete_allowed_domains),
+                    .service(delete_allowed_domains)
+                    .service(metrics)
             )
             .service(fs::Files::new("/", "./static").index_file("index.html"))
     })

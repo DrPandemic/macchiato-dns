@@ -20,6 +20,7 @@ mod filter_statistics;
 mod helpers;
 mod instrumentation;
 mod message;
+mod prometheus;
 mod network;
 mod question;
 mod resolver_manager;

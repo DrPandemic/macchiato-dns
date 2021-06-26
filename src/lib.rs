@@ -8,6 +8,7 @@ pub mod helpers;
 pub mod instrumentation;
 pub mod message;
 pub mod network;
+pub mod prometheus;
 pub mod question;
 pub mod resolver_manager;
 pub mod resource_record;
