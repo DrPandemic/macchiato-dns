@@ -1,4 +1,4 @@
-FROM arm32v7/rust:latest
+FROM arm64v8/rust:latest
 WORKDIR /app
 RUN mkdir -p /app/src
 RUN echo "fn main() {println!(\"if you see this, the build broke\")}" > src/main.rs
@@ -13,11 +13,21 @@ COPY ./blu.txt ./
 COPY ./src ./src
 RUN cargo build --release
 
-FROM arm32v7/alpine
+FROM arm64v8/debian:latest
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && update-ca-certificates \
+ && apt-get clean autoclean \
+ && apt-get autoremove --yes \
+ && rm -rf /var/lib/{apt,dpkg,cache,log}/
+
 
 WORKDIR /app
 RUN mkdir -p /app/target/release
-COPY --from=0 /app/target/release/dns /app/target/release/dns
+COPY --from=0 /app/target/release/dns /app/target/release/
+COPY --from=0 /app/blu.txt /app/
+COPY --from=0 /app/static/ /app/static/
 
 EXPOSE 53/udp
 ENTRYPOINT ["./target/release/dns"]
