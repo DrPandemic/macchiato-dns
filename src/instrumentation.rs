@@ -69,8 +69,7 @@ impl InstrumentationLog {
         self.data.push(instrumentation);
     }
 
-    pub fn update_resolver_manager(&self, resolver_manager: Arc<Mutex<ResolverManager>>) {
-        let mut resolver_manager = resolver_manager.lock().unwrap();
+    pub fn averages(&self) -> HashMap<String, Duration> {
         let mut groups: HashMap<String, Vec<Duration>> = HashMap::new();
         for instrumentation in (&self.data).into_iter() {
             if let Some(resolver) = instrumentation.resolver.clone() {
@@ -81,9 +80,18 @@ impl InstrumentationLog {
                 groups.get_mut(&resolver).unwrap().push(instrumentation.remote_timing());
             }
         }
+        let mut averages: HashMap<String, Duration> = HashMap::new();
         for (key, group) in groups {
-            let sum = group.iter().sum::<Duration>();
-            resolver_manager.update_resolver(key, sum / group.len() as u32);
+            averages.insert(key, group.iter().sum::<Duration>() / group.len() as u32);
+        }
+
+        averages
+    }
+
+    pub fn update_resolver_manager(&self, resolver_manager: Arc<Mutex<ResolverManager>>) {
+        let mut resolver_manager = resolver_manager.lock().unwrap();
+        for (key, average) in self.averages() {
+            resolver_manager.update_resolver(key, average);
         }
     }
 }
