@@ -5,13 +5,13 @@ RUN echo "fn main() {println!(\"if you see this, the build broke\")}" > src/main
 COPY ./Cargo.toml ./
 COPY ./Cargo.lock ./
 COPY ./benches ./benches
-RUN cargo build --release
+RUN cargo build --release -j 3
 
 COPY ./static ./static
 COPY ./blu.txt ./
 
 COPY ./src ./src
-RUN cargo build --release
+RUN cargo build --release -j 3
 
 FROM arm64v8/debian:latest
 
@@ -21,7 +21,6 @@ RUN apt-get update \
  && apt-get clean autoclean \
  && apt-get autoremove --yes \
  && rm -rf /var/lib/{apt,dpkg,cache,log}/
-
 
 WORKDIR /app
 RUN mkdir -p /app/target/release
