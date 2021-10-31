@@ -1,5 +1,6 @@
 use crate::cli::Opt;
 use crate::filter::{FilterVersion, FilterFormat};
+use crate::overrides::OverrideContainer;
 use crate::web_auth::get_web_password_hash;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -14,6 +15,7 @@ pub struct Config {
     pub external: bool,
     pub filters_path: Option<PathBuf>,
     pub filter_version: FilterVersion,
+    pub overrides: OverrideContainer,
     pub small: bool,
     pub verbosity: u8,
 
@@ -40,6 +42,7 @@ impl Default for Config {
             filters_path: Some(PathBuf::from("./")),
             filter_format: FilterFormat::Vector,
             filter_version: FilterVersion::Blu,
+            overrides: OverrideContainer::default(),
             small: true,
             verbosity: 0,
             web_password: None,

@@ -4,7 +4,9 @@ use crate::filter::*;
 use crate::helpers::*;
 use crate::instrumentation::*;
 use crate::message::*;
+use crate::overrides::OverrideContainer;
 use crate::resolver_manager::ResolverManager;
+
 use std::error::Error;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::mpsc::Sender;
@@ -99,6 +101,7 @@ pub async fn query_remote_dns_server_doh(
 }
 
 pub fn spawn_remote_dns_query(
+    overrides: Arc<Mutex<OverrideContainer>>,
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
     resolver_manager: Arc<Mutex<ResolverManager>>,
@@ -136,20 +139,18 @@ pub fn spawn_remote_dns_query(
             }
 
             (false, cached)
-        } else if filter_query(filter, config, &query, verbosity) {
-            if let Ok(response) = generate_deny_response(&query) {
-                (false, response)
-            } else {
-                return;
-            }
         } else {
-            let resolver = resolver_manager.lock().unwrap().get_resolver();
-            instrumentation.set_request_sent(resolver.0.clone());
-            if let Ok(result) = query_remote_dns_server_doh(resolver, query).await {
-                instrumentation.set_request_received();
-                (true, result)
+            if let Some(message) = override_query(overrides, filter, config, &query, verbosity) {
+                (false, message)
             } else {
-                return log_error("Failed to send DoH", verbosity);
+                let resolver = resolver_manager.lock().unwrap().get_resolver();
+                instrumentation.set_request_sent(resolver.0.clone());
+                if let Ok(result) = query_remote_dns_server_doh(resolver, query).await {
+                    instrumentation.set_request_received();
+                    (true, result)
+                } else {
+                    return log_error("Failed to send DoH", verbosity);
+                }
             }
         };
 
@@ -163,27 +164,42 @@ pub fn spawn_remote_dns_query(
     });
 }
 
-fn filter_query(filter: Arc<Mutex<Filter>>, config: Arc<Mutex<Config>>, query: &Message, verbosity: u8) -> bool {
+fn override_query(
+    overrides: Arc<Mutex<OverrideContainer>>,
+    filter: Arc<Mutex<Filter>>,
+    config: Arc<Mutex<Config>>,
+    query: &Message,
+    verbosity: u8
+) -> Option<Message> {
     if let Ok(question) = query.question() {
         let qname = question.qname();
         if qname.is_err() {
-            return true;
+            return generate_deny_response(&query).ok()
         }
         let name = qname.unwrap().join(".").into();
         if verbosity > 1 {
             println!("{:?}", name);
         }
+
+        let overrides = overrides.lock().unwrap();
+        if let Some(response) = overrides.get(&name) {
+            if verbosity > 0 {
+                println!("{:?} was overriten!", name.clone());
+            }
+            return generate_override_response(&query, response).ok();
+        }
+
         let mut filter = filter.lock().unwrap();
-        if let Some(filtered) = filter.filtered_by(&name, &config.lock().unwrap().allowed_domains) {
+        if let Some(filtered) = filter.filtered_by(&(name.clone().into()), &config.lock().unwrap().allowed_domains) {
             if verbosity > 0 {
                 println!("{:?} was filtered by {:?}!", name, filtered);
             }
-            true
+            generate_deny_response(&query).ok()
         } else {
-            false
+            None
         }
     } else {
         log_error("couldn't parse question", verbosity);
-        false
+        None
     }
 }

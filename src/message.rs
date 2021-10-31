@@ -1,12 +1,12 @@
+use crate::helpers::*;
+use crate::question::*;
+use crate::resource_record::*;
+
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::error::Error;
 use std::io;
 use std::net::SocketAddr;
 use tokio::net::udp::SendHalf;
-
-use crate::helpers::*;
-use crate::question::*;
-use crate::resource_record::*;
 
 #[derive(Clone, Debug)]
 pub struct Message {
@@ -314,6 +314,19 @@ pub fn generate_deny_response<'a>(query: &'a Message) -> Result<Message, Box<dyn
     // Means don't understand DNSSEC. AD bit
     message.set_ad(false)?;
     message.add_answer(generate_answer_a(&query.question()?.qname()?, vec![0, 0, 0, 0]))?;
+
+    Ok(message)
+}
+
+pub fn generate_override_response(query: &Message, override_address: &Vec<u8>) -> Result<Message, Box<dyn Error>> {
+    let mut message = Message {
+        buffer: query.buffer.clone(),
+    };
+
+    message.set_qr(true)?;
+    // Means don't understand DNSSEC. AD bit
+    message.set_ad(false)?;
+    message.add_answer(generate_answer_a(&query.question()?.qname()?, override_address.clone()))?;
 
     Ok(message)
 }

@@ -7,3 +7,6 @@ filter_version = "Blu"
 small = true
 verbosity = 0
 #web_password = "superpassword"
+
+[overrides]
+"example.com" = [4, 3, 2, 1]

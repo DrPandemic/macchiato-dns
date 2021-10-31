@@ -1,3 +1,10 @@
+extern crate lru;
+extern crate nix;
+extern crate reqwest;
+extern crate smartstring;
+extern crate tokio;
+extern crate toml;
+
 pub mod cache;
 pub mod cli;
 pub mod config;
@@ -8,6 +15,7 @@ pub mod helpers;
 pub mod instrumentation;
 pub mod message;
 pub mod network;
+pub mod overrides;
 pub mod prometheus;
 pub mod question;
 pub mod resolver_manager;

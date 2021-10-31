@@ -70,8 +70,6 @@ impl Filter {
         }
     }
 
-
-
     pub async fn from_internet(config: Arc<Mutex<Config>>) -> Result<Filter, Box<dyn std::error::Error>> {
         let client = reqwest::Client::builder()
             .gzip(true)

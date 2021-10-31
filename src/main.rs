@@ -1,11 +1,4 @@
 #![allow(dead_code)]
-extern crate lru;
-extern crate nix;
-extern crate reqwest;
-extern crate smartstring;
-extern crate tokio;
-extern crate toml;
-
 use std::str;
 use std::sync::{Arc, Mutex};
 use structopt::StructOpt;
@@ -22,6 +15,7 @@ mod instrumentation;
 mod message;
 mod prometheus;
 mod network;
+mod overrides;
 mod question;
 mod resolver_manager;
 mod resource_record;
@@ -29,12 +23,14 @@ mod ring_buffer;
 mod tree;
 mod web;
 mod web_auth;
+
 use crate::cache::*;
 use crate::cli::*;
 use crate::config::Config;
 use crate::dns_actors::*;
 use crate::filter::*;
 use crate::instrumentation::*;
+use crate::overrides::OverrideContainer;
 use crate::resolver_manager::ResolverManager;
 use crate::web::*;
 
@@ -57,6 +53,7 @@ async fn main() {
     .expect("tried to bind an UDP port");
     let config = Arc::new(Mutex::new(config));
 
+    let overrides = Arc::new(Mutex::new(OverrideContainer::from_config(Arc::clone(&config))));
     let filter = Arc::new(Mutex::new(Filter::from_config(Arc::clone(&config))));
     let cache = Arc::new(Mutex::new(Cache::new()));
     let instrumentation_log = Arc::new(Mutex::new(InstrumentationLog::new()));
@@ -73,6 +70,7 @@ async fn main() {
     spawn_listener(
         receiving,
         response_sender,
+        Arc::clone(&overrides),
         Arc::clone(&filter),
         Arc::clone(&cache),
         Arc::clone(&resolver_manager),
