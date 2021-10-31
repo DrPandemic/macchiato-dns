@@ -5,7 +5,6 @@ use crate::helpers::*;
 use crate::instrumentation::*;
 use crate::message::*;
 use crate::network::*;
-use crate::overrides::OverrideContainer;
 use crate::resolver_manager::ResolverManager;
 
 use std::cmp;
@@ -50,7 +49,6 @@ pub fn spawn_responder(
 pub fn spawn_listener(
     mut socket: RecvHalf,
     channel: Sender<(SocketAddr, Instrumentation, Message)>,
-    overrides: Arc<Mutex<OverrideContainer>>,
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
     resolver_manager: Arc<Mutex<ResolverManager>>,
@@ -64,7 +62,6 @@ pub fn spawn_listener(
                 _ => continue,
             };
             spawn_remote_dns_query(
-                Arc::clone(&overrides),
                 Arc::clone(&filter),
                 Arc::clone(&cache),
                 Arc::clone(&resolver_manager),

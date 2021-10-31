@@ -1,8 +1,9 @@
 use crate::cli::Opt;
 use crate::filter::{FilterVersion, FilterFormat};
-use crate::overrides::OverrideContainer;
 use crate::web_auth::get_web_password_hash;
+
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
 use std::io::prelude::*;
@@ -15,7 +16,6 @@ pub struct Config {
     pub external: bool,
     pub filters_path: Option<PathBuf>,
     pub filter_version: FilterVersion,
-    pub overrides: OverrideContainer,
     pub small: bool,
     pub verbosity: u8,
 
@@ -29,6 +29,9 @@ pub struct Config {
     pub filter_format: FilterFormat,
     #[serde(skip_deserializing, skip_serializing)]
     pub web_password_hash: String,
+
+    #[serde(serialize_with = "toml::ser::tables_last")]
+    pub overrides: HashMap<String, Vec<u8>>,
 }
 
 impl Default for Config {
@@ -42,7 +45,7 @@ impl Default for Config {
             filters_path: Some(PathBuf::from("./")),
             filter_format: FilterFormat::Vector,
             filter_version: FilterVersion::Blu,
-            overrides: OverrideContainer::default(),
+            overrides: HashMap::default(),
             small: true,
             verbosity: 0,
             web_password: None,

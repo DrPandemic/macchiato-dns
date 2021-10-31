@@ -4,7 +4,6 @@ use crate::filter::*;
 use crate::helpers::*;
 use crate::instrumentation::*;
 use crate::message::*;
-use crate::overrides::OverrideContainer;
 use crate::resolver_manager::ResolverManager;
 
 use std::error::Error;
@@ -101,7 +100,6 @@ pub async fn query_remote_dns_server_doh(
 }
 
 pub fn spawn_remote_dns_query(
-    overrides: Arc<Mutex<OverrideContainer>>,
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
     resolver_manager: Arc<Mutex<ResolverManager>>,
@@ -140,7 +138,7 @@ pub fn spawn_remote_dns_query(
 
             (false, cached)
         } else {
-            if let Some(message) = override_query(overrides, filter, config, &query, verbosity) {
+            if let Some(message) = override_query(filter, config, &query, verbosity) {
                 (false, message)
             } else {
                 let resolver = resolver_manager.lock().unwrap().get_resolver();
@@ -165,7 +163,6 @@ pub fn spawn_remote_dns_query(
 }
 
 fn override_query(
-    overrides: Arc<Mutex<OverrideContainer>>,
     filter: Arc<Mutex<Filter>>,
     config: Arc<Mutex<Config>>,
     query: &Message,
@@ -176,17 +173,19 @@ fn override_query(
         if qname.is_err() {
             return generate_deny_response(&query).ok()
         }
-        let name = qname.unwrap().join(".").into();
+        let name: String = qname.unwrap().join(".").into();
         if verbosity > 1 {
             println!("{:?}", name);
         }
 
-        let overrides = overrides.lock().unwrap();
-        if let Some(response) = overrides.get(&name) {
-            if verbosity > 0 {
-                println!("{:?} was overriten!", name.clone());
+        {
+            let overrides = &config.lock().unwrap().overrides;
+            if let Some(response) = overrides.get(&name) {
+                if verbosity > 0 {
+                    println!("{:?} was overriten!", name.clone());
+                }
+                return generate_override_response(&query, response).ok();
             }
-            return generate_override_response(&query, response).ok();
         }
 
         let mut filter = filter.lock().unwrap();

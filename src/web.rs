@@ -144,6 +144,52 @@ async fn post_auto_update_filter(auto_udapte: web::Json<AutoUpdate>, data: web::
     }
 }
 
+#[get("/overrides")]
+async fn get_overrides(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
+    let config = data.config.lock().unwrap();
+    let body = serde_json::to_string(&config.overrides).unwrap();
+
+    Ok(HttpResponse::Ok().content_type("application/json").body(body))
+}
+
+#[delete("/overrides")]
+async fn delete_overrides(domain: web::Json<Domain>, data: web::Data<AppState>) -> actix_web::Result<String> {
+    let mut config = data.config.lock().unwrap();
+
+    config.overrides.remove(&domain.name);
+
+    let saved = config.save();
+
+    match saved {
+        Err(err) => Err(error::ErrorInternalServerError(err)),
+        _ => Ok("{}".to_string())
+    }
+}
+
+#[derive(Deserialize)]
+struct DomainWithAddress {
+    name: String,
+    address: String,
+}
+#[post("/overrides")]
+async fn post_overrides(domain: web::Json<DomainWithAddress>, data: web::Data<AppState>)  -> actix_web::Result<String> {
+    let mut config = data.config.lock().unwrap();
+    let address: Result<Vec<u8>, std::num::ParseIntError>  = domain.address.split(".").map(|s| s.parse::<u8>()).collect();
+
+    match address {
+        Ok(address) => {
+            config.overrides.insert(domain.name.clone(), address);
+            let saved = config.save();
+
+            match saved {
+                Err(err) => Err(error::ErrorInternalServerError(err)),
+                _ => Ok("{}".to_string())
+            }
+        },
+        Err(err) => Err(error::ErrorBadRequest(err))
+    }
+}
+
 pub async fn start_web(
     config: Arc<Mutex<Config>>,
     filter: Arc<Mutex<Filter>>,
@@ -187,10 +233,13 @@ pub async fn start_web(
                     .service(get_instrumentation)
                     .service(get_allowed_domains)
                     .service(get_auto_update_filter)
+                    .service(get_overrides)
                     .service(post_auto_update_filter)
                     .service(post_allowed_domains)
                     .service(post_update_filter)
+                    .service(post_overrides)
                     .service(delete_allowed_domains)
+                    .service(delete_overrides)
                     .service(metrics)
             )
             .service(fs::Files::new("/", "./static").index_file("index.html"))

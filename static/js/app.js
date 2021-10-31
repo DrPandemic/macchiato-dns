@@ -5,10 +5,13 @@ import {
     getPassword,
     getAllowedDomains,
     getAutoUpdateFilter,
+    getOverrides,
     postAutoUpdateFilter,
     postAllowedDomains,
     postUpdateFilter,
+    postOverride,
     deleteAllowedDomains,
+    deleteOverride,
 } from './network.js';
 
 const NSEC_PER_SEC = 1000000000;
@@ -20,6 +23,7 @@ let latestFilter;
 document.getElementById('login-button').addEventListener('click', main);
 document.getElementById('reload').addEventListener('click', main);
 document.getElementById('add-domain-name-button').addEventListener('click', addAllowedDomain);
+document.getElementById('overrides-add').addEventListener('click', addOverride);
 document.getElementById('update-filter').addEventListener('click', updateFilter);
 document.getElementById('auto-update-button').addEventListener('click', updateAutoUpdateFilter);
 document.getElementById('auto-update-checkbox').addEventListener('change', toggleAutoUpdateTextbox);
@@ -59,6 +63,7 @@ function main() {
         .then(showCache)
         .then(showInstrumentation)
         .then(showAllowedDomains)
+        .then(showOverrides)
         .then(showAutoUpdate)
         .catch(e => {
             alert(e);
@@ -226,8 +231,36 @@ function showAllowedDomains() {
     });
 }
 
+function showOverrides() {
+    return getOverrides().then(overrides => {
+        const table = document.getElementById('overrides-domains');
+        table.innerHTML = "";
+        for(const [domain, address] of Object.entries(overrides)) {
+            const row = table.insertRow(0);
+            const cell0 = row.insertCell(0);
+            const cell1 = row.insertCell(1);
+            const cell2 = row.insertCell(2);
+            const image = document.createElement('img');
+            image.src = 'icons/trash-solid.svg';
+            image.alt = 'Trash icon';
+            image.className = 'remove-icon';
+            image.addEventListener('click', () => removeOverride(domain))
+            cell0.innerHTML = domain;
+            cell1.innerHTML = address.join(".");
+            cell2.appendChild(image);
+            cell2.className = 'remove-allowed-domains-column';
+        }
+
+        return Promise.resolve();
+    });
+}
+
 function removeAllowedDomain(domain) {
     deleteAllowedDomains(domain).then(main);
+}
+
+function removeOverride(domain) {
+    deleteOverride(domain).then(main);
 }
 
 function addAllowedDomain() {
@@ -237,6 +270,16 @@ function addAllowedDomain() {
     }
 
     postAllowedDomains(input).then(main);
+}
+
+function addOverride() {
+    const name = document.getElementById('overrides-name').value;
+    const address = document.getElementById('overrides-address').value;
+    if (name === '' || address === '') {
+        return;
+    }
+
+    postOverride(name, address).then(main);
 }
 
 function sleep(m) {

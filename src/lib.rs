@@ -15,7 +15,6 @@ pub mod helpers;
 pub mod instrumentation;
 pub mod message;
 pub mod network;
-pub mod overrides;
 pub mod prometheus;
 pub mod question;
 pub mod resolver_manager;

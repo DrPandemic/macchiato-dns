@@ -63,3 +63,15 @@ export function deleteAllowedDomains(domain) {
 export function postAutoUpdateFilter(autoUpdate) {
     return doCall('auto-update-filter', 'POST', { auto_update: autoUpdate });
 }
+
+export function getOverrides() {
+    return doCall('overrides');
+}
+
+export function deleteOverride(override) {
+    return doCall('overrides', 'DELETE', { name: override });
+}
+
+export function postOverride(name, address) {
+    return doCall('overrides', 'POST', { name: name, address: address });
+}
