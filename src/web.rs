@@ -19,8 +19,11 @@ use std::time::SystemTime;
 use std::sync::mpsc::Sender;
 
 const DEFAULT_INTERNAL_ADDRESS_DEBUG: &str = "127.0.0.1:8080";
+const DEFAULT_INTERNAL_TLS_ADDRESS_DEBUG: &str = "127.0.0.1:4443";
 const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:80";
+const DEFAULT_INTERNAL_TLS_ADDRESS: &str = "127.0.0.1:443";
 const DEFAULT_EXTERNAL_ADDRESS: &str = "0.0.0.0:80";
+const DEFAULT_EXTERNAL_TLS_ADDRESS: &str = "0.0.0.0:443";
 
 pub struct AppState {
     filter: Arc<Mutex<Filter>>,
@@ -197,14 +200,14 @@ pub async fn start_web(
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
     filter_update_channel: Arc<Mutex<Sender<()>>>,
 ) -> std::io::Result<()> {
-    let address = {
+    let (address, tls_address) = {
         let locked_config = config.lock().unwrap();
         if locked_config.debug {
-            DEFAULT_INTERNAL_ADDRESS_DEBUG
+            (DEFAULT_INTERNAL_ADDRESS_DEBUG, DEFAULT_INTERNAL_TLS_ADDRESS_DEBUG)
         } else if locked_config.external {
-            DEFAULT_EXTERNAL_ADDRESS
+            (DEFAULT_EXTERNAL_ADDRESS, DEFAULT_EXTERNAL_TLS_ADDRESS)
         } else {
-            DEFAULT_INTERNAL_ADDRESS
+            (DEFAULT_INTERNAL_ADDRESS, DEFAULT_INTERNAL_TLS_ADDRESS)
         }
     };
 
@@ -244,7 +247,8 @@ pub async fn start_web(
             )
             .service(fs::Files::new("/", "./static").index_file("index.html"))
     })
-    .bind_rustls(address, server_config)?
+    .bind_rustls(tls_address, server_config)?
+    .bind(address)?
     .run()
     .await?;
     sys.await?;

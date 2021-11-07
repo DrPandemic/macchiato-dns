@@ -127,10 +127,15 @@ pub fn spawn_remote_dns_query(
                 let cache = Arc::clone(&cache);
                 tokio::spawn(async move {
                     let resolver = resolver_manager.lock().unwrap().get_resolver();
-                    if let Ok(result) = query_remote_dns_server_doh(resolver, query).await {
-                        cache.lock().unwrap().put(&result);
-                        if verbosity > 1 {
-                            println!("{:?} was prefetched", result.name());
+                    match query_remote_dns_server_doh(resolver, query).await {
+                        Ok(result) => {
+                            cache.lock().unwrap().put(&result);
+                            if verbosity > 1 {
+                                println!("{:?} was prefetched", result.name());
+                            }
+                        }
+                        Err(err) => {
+                            log_error(&format!("Failed to send DoH, {}", err), verbosity);
                         }
                     }
                 });
@@ -143,11 +148,14 @@ pub fn spawn_remote_dns_query(
             } else {
                 let resolver = resolver_manager.lock().unwrap().get_resolver();
                 instrumentation.set_request_sent(resolver.0.clone());
-                if let Ok(result) = query_remote_dns_server_doh(resolver, query).await {
-                    instrumentation.set_request_received();
-                    (true, result)
-                } else {
-                    return log_error("Failed to send DoH", verbosity);
+                match query_remote_dns_server_doh(resolver, query).await {
+                    Ok(result) => {
+                        instrumentation.set_request_received();
+                        (true, result)
+                    }
+                    Err(err) => {
+                        return log_error(&format!("Failed to send DoH, {}", err), verbosity);
+                    }
                 }
             }
         };
@@ -182,9 +190,14 @@ fn override_query(
             let overrides = &config.lock().unwrap().overrides;
             if let Some(response) = overrides.get(&name) {
                 if verbosity > 0 {
-                    println!("{:?} was overriten!", name.clone());
+                    let address = response.iter().map(|n| n.to_string()).collect::<Vec<String>>().join(".");
+                    println!("{:?} was overwritten with {:?}!", name.clone(), address);
                 }
-                return generate_override_response(&query, response).ok();
+                return generate_override_response(&query, response)
+                    .map_err(|err| {
+                        log_error(&format!("Failed to generate override, {}", err), verbosity);
+                        err
+                    }).ok()
             }
         }
 
