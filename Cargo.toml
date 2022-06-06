@@ -9,7 +9,7 @@ nix = "0.16.1"
 tokio = { version = "0.2", features = ["full"] }
 reqwest = { version = "0.10", features = ["native-tls-vendored", "json", "gzip"] }
 structopt = "0.3"
-lru = "0.6.3"
+lru = "0.7.1"
 actix-web = { version = "2.0", features = ["rustls"] }
 rustls = "0.16"
 actix-web-httpauth = "0.4.2"
