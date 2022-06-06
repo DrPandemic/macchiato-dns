@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 nix = "0.16.1"
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "1.8", features = ["full"] }
 reqwest = { version = "0.10", features = ["native-tls-vendored", "json", "gzip"] }
 structopt = "0.3"
 lru = "0.6.3"
