@@ -115,18 +115,18 @@ pub fn spawn_filter_updater_ticker(
         loop {
             if config.lock().unwrap().auto_update.is_none() {
                 delay_for(Duration::from_secs(60 * 60)).await;
-            }
+            } else {
+                if filter_update_channel.lock().unwrap().send(()).is_err() {
+                    return;
+                }
 
-            if filter_update_channel.lock().unwrap().send(()).is_err() {
-                return;
-            }
+                if config.lock().unwrap().auto_update.is_none() {
+                    continue;
+                }
 
-            if config.lock().unwrap().auto_update.is_none() {
-                continue;
+                let auto_update = config.lock().unwrap().auto_update.unwrap().clone();
+                delay_for(Duration::from_secs(cmp::max(60 * 60 * auto_update, 60 * 60))).await;
             }
-
-            let auto_update = config.lock().unwrap().auto_update.unwrap().clone();
-            delay_for(Duration::from_secs(cmp::max(60 * 60 * auto_update, 60 * 60))).await;
         }
     });
 }
