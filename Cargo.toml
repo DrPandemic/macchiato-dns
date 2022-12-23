@@ -5,7 +5,7 @@ authors = ["DrPandemic <DrPandemic@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
-nix = "0.16.1"
+nix = "0.26.1"
 tokio = { version = "0.2", features = ["full"] }
 reqwest = { version = "0.10", features = ["native-tls-vendored", "json", "gzip"] }
 structopt = "0.3"
