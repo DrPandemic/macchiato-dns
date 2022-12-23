@@ -5,6 +5,8 @@ RUN echo "fn main() {println!(\"if you see this, the build broke\")}" > src/main
 COPY ./Cargo.toml ./
 COPY ./Cargo.lock ./
 COPY ./benches ./benches
+# For some reason this is failing, but should let us compile! https://github.com/docker/build-push-action/issues/621#issuecomment-1331455045
+ENV CARGO_NET_GIT_FETCH_WITH_CLI true
 RUN cargo build --release -j 3
 
 COPY ./static ./static
