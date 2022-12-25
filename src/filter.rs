@@ -17,6 +17,7 @@ pub enum FilterVersion {
     Blu,
     Ultimate,
     Test,
+    OneHostsPro,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -66,6 +67,7 @@ impl Filter {
             FilterVersion::Blu => Some(String::from("blu.txt")),
             FilterVersion::Ultimate => Some(String::from("ultimate.txt")),
             FilterVersion::Test => Some(String::from("test_filter.txt")),
+            FilterVersion::OneHostsPro => Some(String::from("1hosts_pro.txt")),
             FilterVersion::None => None,
         }
     }
@@ -200,6 +202,7 @@ fn is_name_in_allowed_list(name: &String, allowed_domains: &Vec<std::string::Str
 fn get_download_url(config: Arc<Mutex<Config>>) -> &'static str {
     match config.lock().unwrap().filter_version {
         FilterVersion::Ultimate => "https://block.energized.pro/ultimate/formats/domains.txt",
+        FilterVersion::OneHostsPro => "https://badmojr.gitlab.io/1hosts/Pro/domains.txt",
         _ => "https://block.energized.pro/blu/formats/domains.txt",
     }
 }
