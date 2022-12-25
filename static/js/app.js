@@ -112,9 +112,15 @@ function displayFiltered(entries) {
         const cell0 = row.insertCell(0);
         const cell1 = row.insertCell(1);
         const cell2 = row.insertCell(2);
+        const cell3 = row.insertCell(3);
         cell0.innerHTML = entry[0];
         cell1.innerHTML = entry[1][0];
         cell2.innerText = new Date(entry[1][1].secs_since_epoch * 1000).toLocaleString();
+
+        const image = document.createElement('img');
+        cell3.addEventListener('click', () => allowDomain(entry[0]))
+        cell3.innerText = "+";
+        cell3.className = 'allow-domain-column';
     }
 
     document.getElementById('filter-size').innerText = `${latestFilter.size} entries`;
@@ -257,6 +263,10 @@ function showOverrides() {
 
 function removeAllowedDomain(domain) {
     deleteAllowedDomains(domain).then(main);
+}
+
+function allowDomain(domain) {
+    postAllowedDomains(domain).then(main);
 }
 
 function removeOverride(domain) {
