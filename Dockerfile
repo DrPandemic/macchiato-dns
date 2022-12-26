@@ -13,7 +13,7 @@ RUN mkdir -p /app/src
 
 COPY ./tmp/dns ./
 COPY ./static ./static
-COPY ./blu.txt ./
+COPY ./1hosts_pro.txt ./
 
 EXPOSE 53/udp
 ENTRYPOINT ["./dns"]

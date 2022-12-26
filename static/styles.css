@@ -44,8 +44,8 @@ body {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 15px;
-    justify-content: space-evenly;
+    gap: 50px;
+    justify-content: flex-start;
     padding: 10px;
 }
 
@@ -77,13 +77,58 @@ table td:nth-child(3) {
     width: 33%;
 }
 
+#allowed-domains {
+    display: table;
+    width: 100%;
+}
+
 #allowed-domains td:nth-child(1) {
-    width: 70%;
-    word-break: break-all;
+    width: 85%;
+    /* word-break: break-all; */
 }
 
 #allowed-domains td:nth-child(2) {
+    width: 15%;
+}
+
+#overrides-domains td:nth-child(1) {
+    width: 75%;
+}
+
+#overrides-domains td:nth-child(2) {
+    width: 15%;
+}
+
+#overrides-domains td:nth-child(3) {
+    width: 10%;
+}
+
+#instrumentation td:nth-child(1) {
+    width: 65%;
+}
+
+#instrumentation td:nth-child(2) {
+    width: 20%;
+}
+
+#instrumentation td:nth-child(3) {
+    width: 15%;
+}
+
+#statistics td:nth-child(1) {
+    width: 50%;
+}
+
+#statistics td:nth-child(2) {
+    width: 10%;
+}
+
+#statistics td:nth-child(3) {
     width: 30%;
+}
+
+#statistics td:nth-child(4) {
+    width: 10%;
 }
 
 tbody tr:nth-child(odd) {
@@ -96,7 +141,8 @@ tbody tr:nth-child(odd) {
 }
 
 .remove-allowed-domains-column {
-    text-align: right;
+    text-align: center;
+    padding-top: 6px;
 }
 
 .allow-domain-column {
