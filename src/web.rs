@@ -9,8 +9,7 @@ use crate::prometheus::metrics;
 use actix_files as fs;
 use actix_web::{delete, get, post, web, error, middleware, App, Error, HttpResponse, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
-use rustls::internal::pemfile::{certs, pkcs8_private_keys};
-use rustls::{NoClientAuth, ServerConfig};
+use rustls_20::ServerConfig;
 use serde::Deserialize;
 use std::fs::File;
 use std::io::BufReader;
@@ -193,6 +192,25 @@ async fn post_overrides(domain: web::Json<DomainWithAddress>, data: web::Data<Ap
     }
 }
 
+pub fn read_certs_from_file(
+) -> Result<(Vec<rustls_20::Certificate>, rustls_20::PrivateKey), Box<dyn std::error::Error>> {
+    // let cert_file = &mut BufReader::new(File::open("ssl/certs.pem").unwrap());
+    // let key_file = &mut BufReader::new(File::open("ssl/key.pem").unwrap());
+    let mut cert_chain_reader = BufReader::new(File::open("ssl/certs.pem")?);
+    let certs = rustls_pemfile::certs(&mut cert_chain_reader)?
+        .into_iter()
+        .map(rustls_20::Certificate)
+        .collect();
+
+    let mut key_reader = BufReader::new(File::open("ssl/key.pem")?);
+    let mut keys = rustls_pemfile::pkcs8_private_keys(&mut key_reader)?;
+
+    assert_eq!(keys.len(), 1);
+    let key = rustls_20::PrivateKey(keys.remove(0));
+
+    Ok((certs, key))
+}
+
 pub async fn start_web(
     config: Arc<Mutex<Config>>,
     filter: Arc<Mutex<Filter>>,
@@ -213,24 +231,20 @@ pub async fn start_web(
 
     let state = web::Data::new(AppState { filter, cache, instrumentation_log, config, filter_update_channel });
 
-    let local = tokio::task::LocalSet::new();
-    let sys = actix_rt::System::run_in_tokio("server", &local);
-
-    let mut server_config = ServerConfig::new(NoClientAuth::new());
-    let cert_file = &mut BufReader::new(File::open("ssl/certs.pem").unwrap());
-    let key_file = &mut BufReader::new(File::open("ssl/key.pem").unwrap());
-    let cert_chain = certs(cert_file).unwrap();
-    let mut keys = pkcs8_private_keys(key_file).unwrap();
-    server_config.set_single_cert(cert_chain, keys.remove(0)).unwrap();
+    let (cert, key) = read_certs_from_file().expect("failed to read certificate");
+    let server_config = ServerConfig::builder()
+        .with_safe_defaults()
+        .with_no_client_auth()
+        .with_single_cert(cert, key)
+        .expect("bad certificate/key");
 
     HttpServer::new(move || {
-        let auth = HttpAuthentication::bearer(validator);
         App::new()
             .app_data(state.clone())
             .wrap(middleware::Compress::default())
             .service(
                 web::scope("/api/1")
-                    .wrap(auth)
+                    .wrap(HttpAuthentication::bearer(validator))
                     .service(get_cache)
                     .service(get_filter)
                     .service(get_instrumentation)
@@ -251,6 +265,5 @@ pub async fn start_web(
     .bind(address)?
     .run()
     .await?;
-    sys.await?;
     Ok(())
 }

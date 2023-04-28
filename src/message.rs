@@ -1,12 +1,12 @@
 use crate::helpers::*;
 use crate::question::*;
 use crate::resource_record::*;
+use crate::network::Socket;
 
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::error::Error;
 use std::io;
 use std::net::SocketAddr;
-use tokio::net::udp::SendHalf;
 
 #[derive(Clone, Debug)]
 pub struct Message {
@@ -279,14 +279,14 @@ impl Message {
                 .fold(Ok(0), |acc: Result<usize, Box<dyn Error>>, q| Ok(acc? + q.len()?))?;
         let (first, last) = new_buffer.split_at(split_point);
         self.buffer = vec![];
-        self.buffer.extend_from_slice(&first);
+        self.buffer.extend_from_slice(first);
         self.buffer.extend_from_slice(&answer.get_buffer()?);
-        self.buffer.extend_from_slice(&last);
+        self.buffer.extend_from_slice(last);
 
         Ok(())
     }
 
-    pub async fn send_to(&self, socket: &mut SendHalf, target: &SocketAddr) -> io::Result<usize> {
+    pub async fn send_to(&self, socket: Socket, target: &SocketAddr) -> io::Result<usize> {
         socket.send_to(&self.buffer, target).await
     }
 
@@ -294,7 +294,7 @@ impl Message {
         if (position + data.len()) > self.buffer.len() {
             return Err(Box::new(MalformedMessageError));
         }
-        for (i, datum) in data.into_iter().enumerate() {
+        for (i, datum) in data.iter().enumerate() {
             *self.buffer.get_mut(position + i).ok_or(MalformedMessageError)? = *datum;
         }
         Ok(())

@@ -10,19 +10,20 @@ use std::error::Error;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
-use tokio::net::udp::RecvHalf;
 use tokio::net::UdpSocket;
 
 const MAX_DATAGRAM_SIZE: usize = 512;
+pub type Socket = Arc<UdpSocket>;
 
-pub async fn recv_datagram(socket: &mut RecvHalf) -> Result<(Vec<u8>, std::net::SocketAddr), Box<dyn Error>> {
+pub async fn recv_datagram(socket: Socket) -> Result<(Vec<u8>, std::net::SocketAddr), Box<dyn Error>> {
     let mut buf = [0; MAX_DATAGRAM_SIZE];
     let (amt, src) = socket.recv_from(&mut buf).await?;
+
     Ok((buf[..amt].to_vec(), src))
 }
 
 pub async fn receive_local_request(
-    local_socket: &mut RecvHalf,
+    local_socket: Socket,
     verbose: u8,
 ) -> Result<(Message, std::net::SocketAddr), Box<dyn Error>> {
     // Receives a single datagram message on the socket. If `buf` is too small to hold
@@ -67,15 +68,14 @@ pub async fn query_remote_dns_server_udp(
     let remote_socket = UdpSocket::bind((local_address, 0))
         .await
         .expect("couldn't bind remote resolver to address");
-    let (mut receiving, mut send) = remote_socket.split();
+    let remote_socket = Arc::new(remote_socket);
     query
-        .send_to(&mut send, remote_address)
+        .send_to(remote_socket.clone(), remote_address)
         .await
         .expect("couldn't send data to remote");
-    let (remote_buf, _) = recv_datagram(&mut receiving)
+    let (remote_buf, _) = recv_datagram(remote_socket.clone())
         .await
         .expect("couldn't receive datagram from remote");
-    // println!("A buffer: {:?}", remote_buf);
     parse_message(remote_buf)
 }
 

@@ -7,13 +7,13 @@ pub struct ResolverManager {
     resolvers: Vec<(String, Option<(&'static str, &'static str)>, Duration)>,
 }
 
-impl ResolverManager {
-    pub fn new() -> ResolverManager {
+impl Default for ResolverManager {
+    fn default() -> ResolverManager {
         ResolverManager {
             resolvers: vec![
                 (
                     "https://8.8.8.8/dns-query".to_string(),
-                    Some(("host", "dns.google")),
+                    Some(("authority", "dns.google")),
                     Duration::new(0, 0),
                 ),
                 ("https://1.1.1.1/dns-query".to_string(), None, Duration::new(0, 0)),
@@ -21,7 +21,9 @@ impl ResolverManager {
             ],
         }
     }
+}
 
+impl ResolverManager {
     pub fn get_resolver(&mut self) -> (String, Option<(&'static str, &'static str)>) {
         let mut rng = rand::thread_rng();
 

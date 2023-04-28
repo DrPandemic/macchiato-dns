@@ -49,23 +49,22 @@ async fn main() {
     })
     .await
     .expect("tried to bind an UDP port");
+    let socket = Arc::new(socket);
     let config = Arc::new(Mutex::new(config));
 
     let filter = Arc::new(Mutex::new(Filter::from_config(Arc::clone(&config))));
     let cache = Arc::new(Mutex::new(Cache::new()));
     let instrumentation_log = Arc::new(Mutex::new(InstrumentationLog::new()));
-    let resolver_manager = Arc::new(Mutex::new(ResolverManager::new()));
-
-    let (receiving, sending) = socket.split();
+    let resolver_manager = Arc::new(Mutex::new(ResolverManager::default()));
 
     let response_sender = spawn_responder(
-        sending,
+        socket.clone(),
         Arc::clone(&instrumentation_log),
         Arc::clone(&resolver_manager),
         verbosity,
     );
     spawn_listener(
-        receiving,
+        socket.clone(),
         response_sender,
         Arc::clone(&filter),
         Arc::clone(&cache),

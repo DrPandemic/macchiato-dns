@@ -11,7 +11,7 @@ use std::time::SystemTime;
 use std::sync::{Arc, Mutex};
 use std::fs;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum FilterVersion {
     None,
     Blu,
@@ -20,15 +20,12 @@ pub enum FilterVersion {
     OneHostsPro,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub enum FilterFormat {
+    #[default]
     Vector,
     Hash,
     Tree,
-}
-
-impl Default for FilterFormat {
-    fn default() -> Self { FilterFormat::Vector }
 }
 
 pub struct Filter {

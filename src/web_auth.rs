@@ -1,13 +1,14 @@
 use crate::web::AppState;
 
-use actix_web::{dev::ServiceRequest, error, Error};
+use actix_web::{dev::ServiceRequest, error, web, Error};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use bcrypt::{hash, verify};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 
-pub async fn validator(req: ServiceRequest, credentials: BearerAuth) -> Result<ServiceRequest, Error> {
-    let web_password_hash = req.app_data::<AppState>().map(|state| {
+pub async fn validator(req: ServiceRequest, credentials: BearerAuth)
+-> Result<ServiceRequest, (Error, ServiceRequest)> {
+    let web_password_hash = req.app_data::<web::Data<AppState>>().map(|state| {
         state
             .config
             .lock()
@@ -19,10 +20,10 @@ pub async fn validator(req: ServiceRequest, credentials: BearerAuth) -> Result<S
         if let Ok(true) = verify(credentials.token(), &hash) {
             Ok(req)
         } else {
-            Err(error::ErrorUnauthorized(""))
+            Err((error::ErrorUnauthorized(""), req))
         }
     } else {
-        Err(error::ErrorUnauthorized(""))
+        Err((error::ErrorUnauthorized(""), req))
     }
 }
 

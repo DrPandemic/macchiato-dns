@@ -95,8 +95,8 @@ $ docker push drpandemic/macchiato-dns
 If you think there's a missing feature, feel free to open a pull request. I will be more than happy to help you
 contribute.
 
-I'm not planning to add any new features by myself for now (like auto updating block lists). The project has currently
-enough features for my personal use.
+I'm not planning to add any new features by myself for now. The project has currently enough features for my personal
+use.
 
 # License
 This software is distributed under Apache-2.0.

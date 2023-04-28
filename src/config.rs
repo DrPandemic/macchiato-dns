@@ -9,7 +9,7 @@ use std::fs;
 use std::io::prelude::*;
 use std::path::PathBuf;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Config {
     pub allowed_domains: Vec<String>,
     pub auto_update: Option<u64>,

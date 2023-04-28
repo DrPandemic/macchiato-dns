@@ -12,26 +12,27 @@ use std::{net::SocketAddr, time::Duration};
 use std::sync::mpsc::{Sender, channel};
 use std::sync::{Arc, Mutex};
 
-use tokio::net::udp::{RecvHalf, SendHalf};
-use tokio::time::delay_for;
+use tokio::time::sleep;
 
 pub fn spawn_responder(
-    socket: SendHalf,
+    socket: Socket,
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
     resolver_manager: Arc<Mutex<ResolverManager>>,
     verbosity: u8,
 ) -> Sender<(SocketAddr, Instrumentation, Message)> {
     // TODO: Considere using https://docs.rs/async-std/1.3.0/async_std/sync/fn.channel.html
     let (response_sender, response_receiver) = channel::<(SocketAddr, Instrumentation, Message)>();
-    let mut socket = socket;
     tokio::spawn(async move {
         loop {
             let result = response_receiver.recv();
             if let Ok((src, instrumentation, message)) = result {
-                let sent = message.send_to(&mut socket, &src).await;
-                if sent.is_err() {
-                    log_error("Failed to send back UDP packet", verbosity);
-                    continue;
+                {
+
+                    let sent = message.send_to(socket.clone(), &src).await;
+                    if sent.is_err() {
+                        log_error("Failed to send back UDP packet", verbosity);
+                        continue;
+                    }
                 }
                 if verbosity > 1 {
                     instrumentation.display();
@@ -43,11 +44,11 @@ pub fn spawn_responder(
         }
     });
 
-    return response_sender;
+    response_sender
 }
 
 pub fn spawn_listener(
-    mut socket: RecvHalf,
+    socket: Socket,
     channel: Sender<(SocketAddr, Instrumentation, Message)>,
     filter: Arc<Mutex<Filter>>,
     cache: Arc<Mutex<Cache>>,
@@ -57,7 +58,7 @@ pub fn spawn_listener(
 ) {
     tokio::spawn(async move {
         loop {
-            let (query, src) = match receive_local_request(&mut socket, verbosity).await {
+            let (query, src) = match receive_local_request(socket.clone(), verbosity).await {
                 Ok(result) => result,
                 _ => continue,
             };
@@ -104,7 +105,7 @@ pub fn spawn_filter_updater(
         }
     });
 
-    return response_sender;
+    response_sender
 }
 
 pub fn spawn_filter_updater_ticker(
@@ -114,7 +115,7 @@ pub fn spawn_filter_updater_ticker(
     tokio::spawn(async move {
         loop {
             if config.lock().unwrap().auto_update.is_none() {
-                delay_for(Duration::from_secs(60 * 60)).await;
+                sleep(Duration::from_secs(60 * 60)).await;
             } else {
                 if filter_update_channel.lock().unwrap().send(()).is_err() {
                     return;
@@ -124,8 +125,8 @@ pub fn spawn_filter_updater_ticker(
                     continue;
                 }
 
-                let auto_update = config.lock().unwrap().auto_update.unwrap().clone();
-                delay_for(Duration::from_secs(cmp::max(60 * 60 * auto_update, 60 * 60))).await;
+                let auto_update = config.lock().unwrap().auto_update.unwrap();
+                sleep(Duration::from_secs(cmp::max(60 * 60 * auto_update, 60 * 60))).await;
             }
         }
     });
