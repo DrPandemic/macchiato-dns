@@ -18,6 +18,7 @@ pub fn spawn_responder(
     socket: Socket,
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
     resolver_manager: Arc<Mutex<ResolverManager>>,
+    config: Arc<Mutex<Config>>,
     verbosity: u8,
 ) -> Sender<(SocketAddr, Instrumentation, Message)> {
     // TODO: Considere using https://docs.rs/async-std/1.3.0/async_std/sync/fn.channel.html
@@ -40,6 +41,12 @@ pub fn spawn_responder(
                 let mut log = instrumentation_log.lock().unwrap();
                 log.push(instrumentation);
                 log.update_resolver_manager(Arc::clone(&resolver_manager));
+            } else {
+                let config = config.lock().unwrap();
+                log_error("Failed to receive message to responder", config.verbosity);
+                if config.server_closing {
+                    break;
+                }
             }
         }
     });
@@ -101,6 +108,9 @@ pub fn spawn_filter_updater(
             } else {
                 let config = config.lock().unwrap();
                 log_error("Failed to receive message to update filter", config.verbosity);
+                if config.server_closing {
+                    break;
+                }
             }
         }
     });

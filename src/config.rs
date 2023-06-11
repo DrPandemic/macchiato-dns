@@ -29,6 +29,8 @@ pub struct Config {
     pub filter_format: FilterFormat,
     #[serde(skip_deserializing, skip_serializing)]
     pub web_password_hash: String,
+    #[serde(skip_deserializing, skip_serializing)]
+    pub server_closing: bool,
 
     #[serde(serialize_with = "toml::ser::tables_last")]
     pub overrides: HashMap<String, Vec<u8>>,
@@ -46,6 +48,7 @@ impl Default for Config {
             filter_format: FilterFormat::Vector,
             filter_version: FilterVersion::Blu,
             overrides: HashMap::default(),
+            server_closing: false,
             small: true,
             verbosity: 0,
             web_password: None,

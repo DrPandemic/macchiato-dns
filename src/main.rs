@@ -61,6 +61,7 @@ async fn main() {
         socket.clone(),
         Arc::clone(&instrumentation_log),
         Arc::clone(&resolver_manager),
+        Arc::clone(&config),
         verbosity,
     );
     spawn_listener(
@@ -79,4 +80,7 @@ async fn main() {
     start_web(Arc::clone(&config), filter, cache, instrumentation_log, Arc::clone(&filter_update_channel))
         .await
         .unwrap();
+
+    let mut locked_config = config.lock().unwrap();
+    locked_config.server_closing = true;
 }
