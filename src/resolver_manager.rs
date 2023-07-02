@@ -28,7 +28,7 @@ impl ResolverManager {
         let mut rng = rand::thread_rng();
 
         let entry = if rng.gen::<f32>() < RANDOM_FACTOR {
-            &self.resolvers[rng.gen_range(0, self.resolvers.len())]
+            &self.resolvers[rng.gen_range(0..self.resolvers.len())]
         } else {
             self.resolvers.iter().min_by_key(|e| e.2).unwrap()
         };

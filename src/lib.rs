@@ -1,5 +1,4 @@
 extern crate lru;
-extern crate nix;
 extern crate reqwest;
 extern crate smartstring;
 extern crate tokio;

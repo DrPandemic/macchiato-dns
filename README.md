@@ -87,7 +87,7 @@ $ MACHINE=armv7 ARCH=arm CC=arm-linux-gnueabihf-gcc cargo build --release --targ
 
 ```bash
 $ docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-$ MACHINE=armv7 ARCH=arm CC=arm-linux-gnueabihf-gcc cargo build --release --target=armv7-unknown-linux-gnueabihf && yes | cp -f target/armv7-unknown-linux-gnueabihf/release/dns tmp/dns && docker build . -t drpandemic/macchiato-dns
+$ docker buildx build -f Dockerfile-compile --platform=linux/arm64 -t drpandemic/macchiato-dns .
 $ docker push drpandemic/macchiato-dns
 ```
 

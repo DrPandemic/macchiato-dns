@@ -40,26 +40,6 @@ pub async fn receive_local_request(
     Ok((message, src))
 }
 
-pub fn find_private_ipv4_address() -> Option<Ipv4Addr> {
-    nix::ifaddrs::getifaddrs()
-        .and_then(|addrs| {
-            Ok(addrs
-                .filter_map(|addr| {
-                    if let Some(nix::sys::socket::SockAddr::Inet(address)) = addr.address {
-                        if let std::net::IpAddr::V4(ip) = address.ip().to_std() {
-                            Some(ip)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                })
-                .find(|ip| ip.is_private()))
-        })
-        .unwrap_or(None)
-}
-
 pub async fn query_remote_dns_server_udp(
     local_address: Ipv4Addr,
     remote_address: &SocketAddr,

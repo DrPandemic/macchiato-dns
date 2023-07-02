@@ -1,6 +1,5 @@
 use crate::cli::Opt;
 use crate::filter::{FilterVersion, FilterFormat};
-use crate::web_auth::get_web_password_hash;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -28,8 +27,6 @@ pub struct Config {
     #[serde(skip_deserializing, skip_serializing)]
     pub filter_format: FilterFormat,
     #[serde(skip_deserializing, skip_serializing)]
-    pub web_password_hash: String,
-    #[serde(skip_deserializing, skip_serializing)]
     pub server_closing: bool,
 
     #[serde(serialize_with = "toml::ser::tables_last")]
@@ -52,7 +49,6 @@ impl Default for Config {
             small: true,
             verbosity: 0,
             web_password: None,
-            web_password_hash: String::from("abcd"),
         }
     }
 }
@@ -67,7 +63,6 @@ impl Config {
 
         config.configuration_path = opt.configuration;
         config.debug = opt.debug;
-        config.web_password_hash = get_web_password_hash(config.web_password.clone());
         config.filter_format = if config.small {
             FilterFormat::Vector
         } else {
