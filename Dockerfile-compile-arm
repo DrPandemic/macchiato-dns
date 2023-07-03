@@ -1,15 +1,21 @@
-FROM arm64v8/rust:slim-bookworm
+FROM rust:slim-bookworm
+
 WORKDIR /app
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends g++-aarch64-linux-gnu libc6-dev-arm64-cross
+RUN rustup target add aarch64-unknown-linux-gnu
+ARG CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+
 RUN mkdir -p /app/src
 RUN echo "fn main() {println!(\"if you see this, the build broke\")}" > src/main.rs
 COPY ./Cargo.toml ./
 COPY ./Cargo.lock ./
 COPY ./benches ./benches
 RUN cargo fetch
-RUN cargo build --release
+RUN cargo build --target=aarch64-unknown-linux-gnu  --release
 
 COPY ./src ./src
-RUN cargo build --release
+RUN cargo build --target=aarch64-unknown-linux-gnu --release
 
 FROM arm64v8/debian:bookworm-slim
 
@@ -24,7 +30,7 @@ WORKDIR /app
 RUN mkdir -p /app/target/release
 COPY ./static ./static
 COPY ./1hosts_pro.txt ./
-COPY --from=0 /app/target/release/dns /app/target/release/
+COPY --from=0 /app/target/aarch64-unknown-linux-gnu/release/dns /app/target/release/
 
 EXPOSE 53/udp
 ENTRYPOINT ["./target/release/dns"]

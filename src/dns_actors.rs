@@ -67,7 +67,10 @@ pub fn spawn_listener(
         loop {
             let (query, src) = match receive_local_request(socket.clone(), verbosity).await {
                 Ok(result) => result,
-                _ => continue,
+                Err(e) => {
+                    log_error(format!("failed with {:?}", e).as_str(), verbosity);
+                    continue
+                },
             };
             spawn_remote_dns_query(
                 Arc::clone(&filter),
