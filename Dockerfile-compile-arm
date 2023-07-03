@@ -1,4 +1,4 @@
-FROM rust:slim-bookworm
+FROM arm64v8/rust:slim-bookworm
 WORKDIR /app
 RUN mkdir -p /app/src
 RUN echo "fn main() {println!(\"if you see this, the build broke\")}" > src/main.rs
@@ -11,7 +11,7 @@ RUN cargo build --release
 COPY ./src ./src
 RUN cargo build --release
 
-FROM debian:bookworm-slim
+FROM arm64v8/debian:bookworm-slim
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates \

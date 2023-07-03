@@ -9,20 +9,14 @@ use crate::prometheus::metrics;
 use actix_files as fs;
 use actix_web::{delete, get, post, web, error, middleware, App, Error, HttpResponse, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
-use rustls_20::ServerConfig;
 use serde::Deserialize;
-use std::fs::File;
-use std::io::BufReader;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 use std::sync::mpsc::Sender;
 
 const DEFAULT_INTERNAL_ADDRESS_DEBUG: &str = "127.0.0.1:8080";
-const DEFAULT_INTERNAL_TLS_ADDRESS_DEBUG: &str = "127.0.0.1:4443";
 const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:80";
-const DEFAULT_INTERNAL_TLS_ADDRESS: &str = "127.0.0.1:443";
 const DEFAULT_EXTERNAL_ADDRESS: &str = "0.0.0.0:80";
-const DEFAULT_EXTERNAL_TLS_ADDRESS: &str = "0.0.0.0:443";
 
 pub struct AppState {
     filter: Arc<Mutex<Filter>>,
@@ -192,25 +186,6 @@ async fn post_overrides(domain: web::Json<DomainWithAddress>, data: web::Data<Ap
     }
 }
 
-pub fn read_certs_from_file(
-) -> Result<(Vec<rustls_20::Certificate>, rustls_20::PrivateKey), Box<dyn std::error::Error>> {
-    // let cert_file = &mut BufReader::new(File::open("ssl/certs.pem").unwrap());
-    // let key_file = &mut BufReader::new(File::open("ssl/key.pem").unwrap());
-    let mut cert_chain_reader = BufReader::new(File::open("ssl/certs.pem")?);
-    let certs = rustls_pemfile::certs(&mut cert_chain_reader)?
-        .into_iter()
-        .map(rustls_20::Certificate)
-        .collect();
-
-    let mut key_reader = BufReader::new(File::open("ssl/key.pem")?);
-    let mut keys = rustls_pemfile::pkcs8_private_keys(&mut key_reader)?;
-
-    assert_eq!(keys.len(), 1);
-    let key = rustls_20::PrivateKey(keys.remove(0));
-
-    Ok((certs, key))
-}
-
 pub async fn start_web(
     config: Arc<Mutex<Config>>,
     filter: Arc<Mutex<Filter>>,
@@ -218,25 +193,18 @@ pub async fn start_web(
     instrumentation_log: Arc<Mutex<InstrumentationLog>>,
     filter_update_channel: Arc<Mutex<Sender<()>>>,
 ) -> std::io::Result<()> {
-    let (address, tls_address) = {
+    let address = {
         let locked_config = config.lock().unwrap();
         if locked_config.debug {
-            (DEFAULT_INTERNAL_ADDRESS_DEBUG, DEFAULT_INTERNAL_TLS_ADDRESS_DEBUG)
+            DEFAULT_INTERNAL_ADDRESS_DEBUG
         } else if locked_config.external {
-            (DEFAULT_EXTERNAL_ADDRESS, DEFAULT_EXTERNAL_TLS_ADDRESS)
+            DEFAULT_EXTERNAL_ADDRESS
         } else {
-            (DEFAULT_INTERNAL_ADDRESS, DEFAULT_INTERNAL_TLS_ADDRESS)
+            DEFAULT_INTERNAL_ADDRESS
         }
     };
 
     let state = web::Data::new(AppState { filter, cache, instrumentation_log, config, filter_update_channel });
-
-    let (cert, key) = read_certs_from_file().expect("failed to read certificate");
-    let server_config = ServerConfig::builder()
-        .with_safe_defaults()
-        .with_no_client_auth()
-        .with_single_cert(cert, key)
-        .expect("bad certificate/key");
 
     HttpServer::new(move || {
         App::new()
@@ -261,7 +229,6 @@ pub async fn start_web(
             )
             .service(fs::Files::new("/", "./static").index_file("index.html"))
     })
-    .bind_rustls(tls_address, server_config)?
     .bind(address)?
     .run()
     .await?;

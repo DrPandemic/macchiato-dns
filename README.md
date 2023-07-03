@@ -87,7 +87,15 @@ $ MACHINE=armv7 ARCH=arm CC=arm-linux-gnueabihf-gcc cargo build --release --targ
 
 ```bash
 $ docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-$ docker buildx build -f Dockerfile-compile --platform=linux/arm64 -t drpandemic/macchiato-dns .
+$ docker buildx build -f Dockerfile-compile-arm --platform=linux/arm64 -t drpandemic/macchiato-dns -o type=docker .
+$ docker push drpandemic/macchiato-dns
+```
+
+### Building the x86 docker image
+
+```bash
+$ docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+$ docker build -f Dockerfile-compile -t drpandemic/macchiato-dns .
 $ docker push drpandemic/macchiato-dns
 ```
 
