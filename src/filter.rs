@@ -72,9 +72,11 @@ impl Filter {
     pub async fn from_internet(config: Arc<Mutex<Config>>) -> Result<Filter, Box<dyn std::error::Error>> {
         let client = reqwest::Client::builder()
             .gzip(true)
-            .build()?
-            .get(get_download_url(Arc::clone(&config)));
-        let response = client.send().await?.text().await?;
+            .build()?;
+        let response = client
+          .get(get_download_url(Arc::clone(&config)))
+          .send().await?
+          .text().await?;
         let buffer = io::BufReader::new(response.as_bytes());
 
         Self::from_buffer(config, buffer).map_err(|e| e.into())
