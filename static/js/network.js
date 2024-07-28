@@ -75,3 +75,7 @@ export function deleteOverride(override) {
 export function postOverride(name, address) {
     return doCall('overrides', 'POST', { name: name, address: address });
 }
+
+export function postDisable() {
+    return doCall('disable', 'POST');
+}

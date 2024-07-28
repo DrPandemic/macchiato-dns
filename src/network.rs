@@ -182,7 +182,7 @@ fn override_query(
         }
 
         let mut filter = filter.lock().unwrap();
-        if let Some(filtered) = filter.filtered_by(&(name.clone().into()), &config.lock().unwrap().allowed_domains) {
+        if let Some(filtered) = filter.filtered_by(&(name.clone().into()), &config.lock().unwrap()) {
             if verbosity > 0 {
                 println!("{:?} was filtered by {:?}!", name, filtered);
             }

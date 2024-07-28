@@ -12,7 +12,7 @@ use actix_web_httpauth::middleware::HttpAuthentication;
 use serde::Deserialize;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
-use std::time::SystemTime;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_INTERNAL_ADDRESS_DEBUG: &str = "127.0.0.1:8080";
 const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:80";
@@ -39,6 +39,7 @@ struct StatisticsBody<'a> {
     pub statistics: &'a FilterStatistics,
     pub size: usize,
     pub created_at: SystemTime,
+    pub disabled: bool,
 }
 
 #[get("/filter")]
@@ -49,6 +50,7 @@ async fn get_filter(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
         statistics: &filter.statistics,
         size: filter.size,
         created_at: filter.created_at,
+        disabled: data.config.lock().unwrap().disabled(),
     };
     let body = serde_json::to_string(&content)?;
 
@@ -192,6 +194,20 @@ async fn post_overrides(domain: web::Json<DomainWithAddress>, data: web::Data<Ap
     }
 }
 
+#[post("/disable")]
+async fn disable(data: web::Data<AppState>)  -> actix_web::Result<String> {
+    let mut config = data.config.lock().unwrap();
+
+    config.disabled_until = now_as_secs() + 60 * 15;
+
+    let saved = config.save();
+
+    match saved {
+        Err(err) => Err(error::ErrorInternalServerError(err)),
+        _ => Ok("{}".to_string()),
+    }
+}
+
 pub async fn start_web(
     config: Arc<Mutex<Config>>,
     filter: Arc<Mutex<Filter>>,
@@ -237,6 +253,7 @@ pub async fn start_web(
                     .service(post_overrides)
                     .service(delete_allowed_domains)
                     .service(delete_overrides)
+                    .service(disable)
                     .service(metrics),
             )
             .service(fs::Files::new("/", "./static").index_file("index.html"))
@@ -245,4 +262,11 @@ pub async fn start_web(
     .run()
     .await?;
     Ok(())
+}
+
+fn now_as_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_secs()
 }

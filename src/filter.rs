@@ -150,8 +150,11 @@ impl Filter {
         }
     }
 
-    pub fn filtered_by(&mut self, name: &String, allowed_domains: &Vec<std::string::String>) -> Option<String> {
-        if is_name_in_allowed_list(name, allowed_domains) {
+    pub fn filtered_by(&mut self, name: &String, config: &Config) -> Option<String> {
+        if config.disabled() {
+            return None;
+        }
+        if is_name_in_allowed_list(name, &config.allowed_domains) {
             return None;
         }
         let result = match self.format {

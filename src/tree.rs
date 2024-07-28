@@ -14,23 +14,23 @@ impl Node {
     }
 
     pub fn insert(&mut self, key_parts: Vec<&str>, fresh: bool) {
-        if key_parts.len() == 0 {
+        if key_parts.is_empty() {
             self.children.clear();
             return;
         }
-        if !fresh && self.children.len() == 0 {
+        if !fresh && self.children.is_empty(){
             return;
         }
 
         let key = key_parts[0];
 
-        if let Some(next) = self.children.get_mut(key.into()) {
+        if let Some(next) = self.children.get_mut(key) {
             next.insert(key_parts[1..].to_vec(), false);
         } else {
             let next = Node::new();
-            self.children.insert(key.clone().into(), next);
+            self.children.insert(key.into(), next);
             self.children
-                .get_mut(key.into())
+                .get_mut(key)
                 .unwrap()
                 .insert(key_parts[1..].to_vec(), true);
         }

@@ -12,6 +12,7 @@ import {
     postOverride,
     deleteAllowedDomains,
     deleteOverride,
+    postDisable,
 } from './network.js';
 
 const NSEC_PER_SEC = 1000000000;
@@ -27,6 +28,7 @@ document.getElementById('overrides-add').addEventListener('click', addOverride);
 document.getElementById('update-filter').addEventListener('click', updateFilter);
 document.getElementById('auto-update-button').addEventListener('click', updateAutoUpdateFilter);
 document.getElementById('auto-update-checkbox').addEventListener('change', toggleAutoUpdateTextbox);
+document.getElementById('disable-button').addEventListener('click', disable);
 
 document.getElementById('count').addEventListener('click', () => {
     filteredOrder[0] = 'count';
@@ -148,6 +150,7 @@ function showStatistics() {
         latestFilter = filter;
         filtered = Object.entries(filter.statistics.data.data);
         displayFiltered(filtered);
+        document.getElementById('filtered').innerText = filter.disabled ? 'Filtered (Disabled)' : 'Filtered';
 
         return Promise.resolve();
     });
@@ -334,4 +337,8 @@ function toggleAutoUpdateTextbox() {
     } else {
         container.style = 'display: none';
     }
+}
+
+function disable() {
+    postDisable().then(main);
 }

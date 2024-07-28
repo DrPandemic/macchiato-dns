@@ -7,6 +7,7 @@ use std::error::Error;
 use std::fs;
 use std::io::prelude::*;
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Config {
@@ -29,6 +30,8 @@ pub struct Config {
     #[serde(skip_deserializing, skip_serializing)]
     pub server_closing: bool,
     #[serde(skip_deserializing, skip_serializing)]
+    pub disabled_until: u64,
+    #[serde(skip_deserializing, skip_serializing)]
     #[serde(serialize_with = "toml::ser::tables_last")]
     pub overrides: HashMap<String, Vec<u8>>,
 }
@@ -40,6 +43,7 @@ impl Default for Config {
             auto_update: None,
             configuration_path: PathBuf::from("./config.toml"),
             debug: true,
+            disabled_until: 0,
             external: true,
             filters_path: Some(PathBuf::from("./")),
             filter_format: FilterFormat::Vector,
@@ -74,5 +78,13 @@ impl Config {
 
     pub fn save(&self) -> Result<(), Box<dyn Error>> {
         Ok(fs::write(self.configuration_path.clone(), toml::to_string(&self)?)?)
+    }
+
+    pub fn disabled(&self) -> bool {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_secs();
+        self.disabled_until > now
     }
 }
