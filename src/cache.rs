@@ -1,6 +1,7 @@
 use crate::message::*;
 
 use core::result::Result;
+use std::num::NonZeroUsize;
 use lru::LruCache;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::cmp::Ordering;
@@ -50,7 +51,7 @@ impl Serialize for Cache {
 impl Cache {
     pub fn new() -> Cache {
         Cache {
-            data: LruCache::new(500),
+            data: LruCache::new(NonZeroUsize::new(500).unwrap()),
         }
     }
 
@@ -68,10 +69,7 @@ impl Cache {
             let mut cached = (*message).clone();
             cached.set_id(query.id().ok()?).ok()?;
             let diff = response_ttl.duration_since(now).ok()?;
-            if cached
-                .set_response_ttl(diff.as_secs() as u32)
-                .is_ok()
-            {
+            if cached.set_response_ttl(diff.as_secs() as u32).is_ok() {
                 Some((cached, diff))
             } else {
                 None

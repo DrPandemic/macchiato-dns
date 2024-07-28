@@ -1,7 +1,7 @@
 use lru::LruCache;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use smartstring::{LazyCompact, SmartString};
-use std::{collections::HashMap, time::SystemTime};
+use std::{collections::HashMap, num::NonZeroUsize, time::SystemTime};
 
 type CompactString = SmartString<LazyCompact>;
 
@@ -27,7 +27,7 @@ impl SerializableFilterStatistics {
 impl FilterStatistics {
     pub fn new() -> FilterStatistics {
         FilterStatistics {
-            data: LruCache::new(500),
+            data: LruCache::new(NonZeroUsize::new(500).unwrap()),
         }
     }
 

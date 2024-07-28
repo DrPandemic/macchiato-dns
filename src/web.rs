@@ -1,18 +1,18 @@
 use crate::cache::Cache;
 use crate::config::Config;
 use crate::filter::Filter;
-use crate::instrumentation::*;
-use crate::web_auth::validator;
 use crate::filter_statistics::FilterStatistics;
+use crate::instrumentation::*;
 use crate::prometheus::metrics;
+use crate::web_auth::validator;
 
 use actix_files as fs;
-use actix_web::{delete, get, post, web, error, middleware, App, Error, HttpResponse, HttpServer};
+use actix_web::{delete, error, get, middleware, post, web, App, Error, HttpResponse, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use serde::Deserialize;
+use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
-use std::sync::mpsc::Sender;
 
 const DEFAULT_INTERNAL_ADDRESS_DEBUG: &str = "127.0.0.1:8080";
 const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:80";
@@ -86,7 +86,7 @@ async fn post_allowed_domains(domain: web::Json<Domain>, data: web::Data<AppStat
 
     match saved {
         Err(err) => Err(error::ErrorInternalServerError(err)),
-        _ => Ok("{}".to_string())
+        _ => Ok("{}".to_string()),
     }
 }
 
@@ -96,7 +96,9 @@ async fn post_update_filter(data: web::Data<AppState>) -> actix_web::Result<Stri
     if result.is_ok() {
         Ok("{}".to_string())
     } else {
-        Err(error::ErrorServiceUnavailable("{\"error\": \"Can't update filter\"}".to_string()))
+        Err(error::ErrorServiceUnavailable(
+            "{\"error\": \"Can't update filter\"}".to_string(),
+        ))
     }
 }
 
@@ -110,7 +112,7 @@ async fn delete_allowed_domains(domain: web::Json<Domain>, data: web::Data<AppSt
 
     match saved {
         Err(err) => Err(error::ErrorInternalServerError(err)),
-        _ => Ok("{}".to_string())
+        _ => Ok("{}".to_string()),
     }
 }
 
@@ -128,7 +130,10 @@ struct AutoUpdate {
 }
 
 #[post("/auto-update-filter")]
-async fn post_auto_update_filter(auto_udapte: web::Json<AutoUpdate>, data: web::Data<AppState>) -> actix_web::Result<String> {
+async fn post_auto_update_filter(
+    auto_udapte: web::Json<AutoUpdate>,
+    data: web::Data<AppState>,
+) -> actix_web::Result<String> {
     let mut config = data.config.lock().unwrap();
     config.auto_update = auto_udapte.auto_update;
 
@@ -136,7 +141,7 @@ async fn post_auto_update_filter(auto_udapte: web::Json<AutoUpdate>, data: web::
 
     match saved {
         Err(err) => Err(error::ErrorInternalServerError(err)),
-        _ => Ok("{}".to_string())
+        _ => Ok("{}".to_string()),
     }
 }
 
@@ -158,7 +163,7 @@ async fn delete_overrides(domain: web::Json<Domain>, data: web::Data<AppState>) 
 
     match saved {
         Err(err) => Err(error::ErrorInternalServerError(err)),
-        _ => Ok("{}".to_string())
+        _ => Ok("{}".to_string()),
     }
 }
 
@@ -168,9 +173,10 @@ struct DomainWithAddress {
     address: String,
 }
 #[post("/overrides")]
-async fn post_overrides(domain: web::Json<DomainWithAddress>, data: web::Data<AppState>)  -> actix_web::Result<String> {
+async fn post_overrides(domain: web::Json<DomainWithAddress>, data: web::Data<AppState>) -> actix_web::Result<String> {
     let mut config = data.config.lock().unwrap();
-    let address: Result<Vec<u8>, std::num::ParseIntError>  = domain.address.split(".").map(|s| s.parse::<u8>()).collect();
+    let address: Result<Vec<u8>, std::num::ParseIntError> =
+        domain.address.split(".").map(|s| s.parse::<u8>()).collect();
 
     match address {
         Ok(address) => {
@@ -179,10 +185,10 @@ async fn post_overrides(domain: web::Json<DomainWithAddress>, data: web::Data<Ap
 
             match saved {
                 Err(err) => Err(error::ErrorInternalServerError(err)),
-                _ => Ok("{}".to_string())
+                _ => Ok("{}".to_string()),
             }
-        },
-        Err(err) => Err(error::ErrorBadRequest(err))
+        }
+        Err(err) => Err(error::ErrorBadRequest(err)),
     }
 }
 
@@ -204,7 +210,13 @@ pub async fn start_web(
         }
     };
 
-    let state = web::Data::new(AppState { filter, cache, instrumentation_log, config, filter_update_channel });
+    let state = web::Data::new(AppState {
+        filter,
+        cache,
+        instrumentation_log,
+        config,
+        filter_update_channel,
+    });
 
     HttpServer::new(move || {
         App::new()
@@ -225,7 +237,7 @@ pub async fn start_web(
                     .service(post_overrides)
                     .service(delete_allowed_domains)
                     .service(delete_overrides)
-                    .service(metrics)
+                    .service(metrics),
             )
             .service(fs::Files::new("/", "./static").index_file("index.html"))
     })

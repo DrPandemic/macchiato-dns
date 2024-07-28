@@ -1,5 +1,5 @@
 use crate::cli::Opt;
-use crate::filter::{FilterVersion, FilterFormat};
+use crate::filter::{FilterFormat, FilterVersion};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -28,7 +28,7 @@ pub struct Config {
     pub filter_format: FilterFormat,
     #[serde(skip_deserializing, skip_serializing)]
     pub server_closing: bool,
-
+    #[serde(skip_deserializing, skip_serializing)]
     #[serde(serialize_with = "toml::ser::tables_last")]
     pub overrides: HashMap<String, Vec<u8>>,
 }
