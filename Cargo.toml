@@ -35,6 +35,3 @@ harness = false
 
 [profile.release]
 codegen-units = 1
-
-[target.armv7-unknown-linux-gnueabihf]
-linker = "arm-linux-gnueabihf-gcc"

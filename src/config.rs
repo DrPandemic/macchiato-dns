@@ -31,7 +31,7 @@ pub struct Config {
     pub server_closing: bool,
     #[serde(skip_deserializing, skip_serializing)]
     pub disabled_until: u64,
-    #[serde(skip_deserializing, skip_serializing)]
+
     #[serde(serialize_with = "toml::ser::tables_last")]
     pub overrides: HashMap<String, Vec<u8>>,
 }
