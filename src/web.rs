@@ -15,8 +15,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_INTERNAL_ADDRESS_DEBUG: &str = "127.0.0.1:8080";
-const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:80";
-const DEFAULT_EXTERNAL_ADDRESS: &str = "0.0.0.0:80";
+const DEFAULT_INTERNAL_ADDRESS: &str = "127.0.0.1:5554";
+const DEFAULT_EXTERNAL_ADDRESS: &str = "0.0.0.0:5554";
 
 pub struct AppState {
     filter: Arc<Mutex<Filter>>,
