@@ -13,7 +13,7 @@ body {
     padding: 1px 50px;
 }
 
-.login-password {
+.password {
     display: block;
     margin: 50px auto 0;
     width: 262px;
@@ -166,7 +166,7 @@ tbody tr:nth-child(odd) {
       margin-top: 50px;
   }
 
-  .login-password {
+  .password {
       width: 95%;
   }
 

@@ -41,7 +41,7 @@ document.getElementById('updated-at').addEventListener('click', () => {
     displayFiltered(filtered);
 });
 
-document.getElementById('login-password').addEventListener('keyup', function(event) {
+document.getElementById('password').addEventListener('keyup', function(event) {
     if (event.keyCode === 13) {
         event.preventDefault();
         document.getElementById("login-button").click();
@@ -76,7 +76,7 @@ function main() {
 
 function showMain() {
     document.getElementById('add-domain-name').value = '';
-    const password = document.getElementById('login-password').value;
+    const password = document.getElementById('password').value;
     if(password) {
         sessionStorage.setItem("password", password);
     }

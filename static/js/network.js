@@ -1,7 +1,7 @@
 const API_PATH = '/api/1'
 
 export function getPassword() {
-    return sessionStorage.getItem('password') || document.getElementById('login-password').value;
+    return sessionStorage.getItem('password') || document.getElementById('password').value;
 }
 
 function doCall(name, verb = 'GET', payload = null) {
