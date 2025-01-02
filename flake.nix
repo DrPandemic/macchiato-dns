@@ -98,7 +98,7 @@
 
         filterVersion = lib.mkOption {
           type = types.str;
-          default = "OneHostsPro";
+          default = "OneHostsLite";
           description = "Filter version";
         };
 

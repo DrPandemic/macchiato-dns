@@ -2,6 +2,7 @@ allowed_domains = []
 auto_update = 168 # 1 week
 debug = false
 external = true
+ip = "192.168.0.42"
 filters_path = "./"
 filter_version = "OneHostsPro"
 small = true

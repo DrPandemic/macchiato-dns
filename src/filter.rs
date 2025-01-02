@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::filter_statistics::*;
+use crate::helpers::log_error;
 use crate::tree::*;
 use serde::{Deserialize, Serialize};
 use smartstring::alias::String;
@@ -17,6 +18,7 @@ pub enum FilterVersion {
     Blu,
     Ultimate,
     Test,
+    OneHostsLite,
     OneHostsPro,
 }
 
@@ -56,7 +58,10 @@ impl Filter {
     pub fn from_config(config: Arc<Mutex<Config>>) -> Filter {
         let filters_path = config.lock().unwrap().filters_path.clone().unwrap_or(PathBuf::from("./"));
 
-        Filter::from_disk(config, filters_path).expect("Couldn't load filter")
+        Filter::from_disk(config.clone(), filters_path)
+          .inspect_err(|_| log_error("Couldn't load filter from disk.", 3))
+          .or(Self::from_buffer(config, io::BufReader::new(empty())))
+          .expect("Couldn't load filter")
     }
 
     fn get_file_name(version: &FilterVersion) -> Option<String> {
@@ -64,6 +69,7 @@ impl Filter {
             FilterVersion::Blu => Some(String::from("blu.txt")),
             FilterVersion::Ultimate => Some(String::from("ultimate.txt")),
             FilterVersion::Test => Some(String::from("test_filter.txt")),
+            FilterVersion::OneHostsLite => Some(String::from("1hosts_lite.txt")),
             FilterVersion::OneHostsPro => Some(String::from("1hosts_pro.txt")),
             FilterVersion::None => None,
         }
@@ -204,6 +210,7 @@ fn is_name_in_allowed_list(name: &String, allowed_domains: &Vec<std::string::Str
 fn get_download_url(config: Arc<Mutex<Config>>) -> &'static str {
     match config.lock().unwrap().filter_version {
         FilterVersion::Ultimate => "https://block.energized.pro/ultimate/formats/domains.txt",
+        FilterVersion::OneHostsLite => "https://badmojr.gitlab.io/1hosts/Lite/domains.txt",
         FilterVersion::OneHostsPro => "https://badmojr.gitlab.io/1hosts/Pro/domains.txt",
         _ => "https://block.energized.pro/blu/formats/domains.txt",
     }
