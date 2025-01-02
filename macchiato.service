@@ -1,6 +1,6 @@
 [Unit]
 Description=Macchiato DNS Proxy Server
-Before=network.target
+After=network.target
 Wants=network.target
 
 [Service]

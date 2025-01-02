@@ -129,6 +129,7 @@
       config = lib.mkIf cfg.enable {
         systemd.services.macchiato-dns = {
           description = "A simple DNS proxy server written in rust. Macchiato DNS contains some powerful features that can be used to secure your communications.";
+	  after = [ "network.target" ];
           wantedBy = [ "multi-user.target" ];
 
           serviceConfig = {
