@@ -94,7 +94,23 @@ pub fn spawn_remote_dns_query(
 
     tokio::spawn(async move {
         let cached = if let Ok(mut cache) = cache.lock() {
-            cache.get(&query)
+            // Skip cache only if this specific domain+network combination has an override
+            let should_skip_cache = if let Ok(question) = query.question() {
+                if let Ok(qname) = question.qname() {
+                    let domain: String = qname.join(".");
+                    crate::helpers::has_network_override_for_domain(src, &domain, &config.lock().unwrap().network_overrides)
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
+            if should_skip_cache {
+                None
+            } else {
+                cache.get(&query)
+            }
         } else {
             return;
         };
@@ -123,8 +139,8 @@ pub fn spawn_remote_dns_query(
 
             (false, cached)
         } else {
-            if let Some(message) = override_query(filter, config, &query, src, verbosity) {
-                (false, message)
+            if let Some((message, is_network_override)) = override_query(filter, config, &query, src, verbosity) {
+                (!is_network_override, message)
             } else {
                 let resolver = resolver_manager.lock().unwrap().get_resolver();
                 instrumentation.set_request_sent(resolver.0.clone());
@@ -156,11 +172,11 @@ fn override_query(
     query: &Message,
     client_addr: SocketAddr,
     verbosity: u8
-) -> Option<Message> {
+) -> Option<(Message, bool)> {
     if let Ok(question) = query.question() {
         let qname = question.qname();
         if qname.is_err() {
-            return generate_deny_response(&query).ok()
+            return generate_deny_response(&query).ok().map(|msg| (msg, false))
         }
         let name: String = qname.unwrap().join(".").into();
         if verbosity > 1 {
@@ -182,7 +198,7 @@ fn override_query(
                             .map_err(|err| {
                                 log_error(&format!("Failed to generate network override, {}", err), verbosity);
                                 err
-                            }).ok()
+                            }).ok().map(|msg| (msg, true))
                     }
                 }
             }
@@ -197,7 +213,7 @@ fn override_query(
                     .map_err(|err| {
                         log_error(&format!("Failed to generate override, {}", err), verbosity);
                         err
-                    }).ok()
+                    }).ok().map(|msg| (msg, false))
             }
         }
 
@@ -206,7 +222,7 @@ fn override_query(
             if verbosity > 0 {
                 println!("{:?} was filtered by {:?}!", name, filtered);
             }
-            generate_deny_response(&query).ok()
+            generate_deny_response(&query).ok().map(|msg| (msg, false))
         } else {
             None
         }

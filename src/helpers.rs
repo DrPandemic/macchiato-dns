@@ -3,6 +3,7 @@ use std::error;
 use std::error::Error;
 use std::fmt;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::collections::HashMap;
 
 pub fn split_u16_into_u8(data: u16) -> Result<[u8; 2], Box<dyn Error>> {
     let a: u8 = u8::try_from(data.checked_shr(8).ok_or(DataTransformationError)?)?;
@@ -184,4 +185,22 @@ pub fn ip_in_cidr(ip: SocketAddr, cidr: &str) -> bool {
     } else {
         false
     }
+}
+
+pub fn client_in_override_network(client_addr: SocketAddr, network_overrides: &HashMap<String, HashMap<String, Vec<u8>>>) -> bool {
+    for cidr in network_overrides.keys() {
+        if ip_in_cidr(client_addr, cidr) {
+            return true;
+        }
+    }
+    false
+}
+
+pub fn has_network_override_for_domain(client_addr: SocketAddr, domain: &str, network_overrides: &HashMap<String, HashMap<String, Vec<u8>>>) -> bool {
+    for (cidr, domain_overrides) in network_overrides {
+        if ip_in_cidr(client_addr, cidr) && domain_overrides.contains_key(domain) {
+            return true;
+        }
+    }
+    false
 }
