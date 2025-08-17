@@ -2,6 +2,7 @@ use std::convert::TryFrom;
 use std::error;
 use std::error::Error;
 use std::fmt;
+use std::net::{Ipv4Addr, SocketAddr};
 
 pub fn split_u16_into_u8(data: u16) -> Result<[u8; 2], Box<dyn Error>> {
     let a: u8 = u8::try_from(data.checked_shr(8).ok_or(DataTransformationError)?)?;
@@ -148,5 +149,39 @@ impl fmt::Display for DataTransformationError {
 impl error::Error for DataTransformationError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         None
+    }
+}
+
+pub fn ip_in_cidr(ip: SocketAddr, cidr: &str) -> bool {
+    if let SocketAddr::V4(ipv4_addr) = ip {
+        let ip = *ipv4_addr.ip();
+
+        let parts: Vec<&str> = cidr.split('/').collect();
+        if parts.len() != 2 {
+            return false;
+        }
+
+        let network_ip: Ipv4Addr = match parts[0].parse() {
+            Ok(ip) => ip,
+            Err(_) => return false,
+        };
+
+        let prefix_len: u8 = match parts[1].parse() {
+            Ok(len) if len <= 32 => len,
+            _ => return false,
+        };
+
+        let mask = if prefix_len == 0 {
+            0u32
+        } else {
+            !((1u32 << (32 - prefix_len)) - 1)
+        };
+
+        let ip_num = u32::from(ip);
+        let network_num = u32::from(network_ip);
+
+        (ip_num & mask) == (network_num & mask)
+    } else {
+        false
     }
 }

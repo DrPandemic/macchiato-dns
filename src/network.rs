@@ -123,7 +123,7 @@ pub fn spawn_remote_dns_query(
 
             (false, cached)
         } else {
-            if let Some(message) = override_query(filter, config, &query, verbosity) {
+            if let Some(message) = override_query(filter, config, &query, src, verbosity) {
                 (false, message)
             } else {
                 let resolver = resolver_manager.lock().unwrap().get_resolver();
@@ -154,6 +154,7 @@ fn override_query(
     filter: Arc<Mutex<Filter>>,
     config: Arc<Mutex<Config>>,
     query: &Message,
+    client_addr: SocketAddr,
     verbosity: u8
 ) -> Option<Message> {
     if let Ok(question) = query.question() {
@@ -167,8 +168,27 @@ fn override_query(
         }
 
         {
-            let overrides = &config.lock().unwrap().overrides;
-            if let Some(response) = overrides.get(&name) {
+            let config_lock = config.lock().unwrap();
+
+            // Check network-specific overrides first
+            for (cidr, network_overrides) in &config_lock.network_overrides {
+                if crate::helpers::ip_in_cidr(client_addr, cidr) {
+                    if let Some(response) = network_overrides.get(&name) {
+                        if verbosity > 0 {
+                            let address = response.iter().map(|n| n.to_string()).collect::<Vec<String>>().join(".");
+                            println!("{:?} was overwritten with {:?} for network {:?}!", name.clone(), address, cidr);
+                        }
+                        return generate_override_response(&query, response)
+                            .map_err(|err| {
+                                log_error(&format!("Failed to generate network override, {}", err), verbosity);
+                                err
+                            }).ok()
+                    }
+                }
+            }
+
+            // Fallback to default overrides
+            if let Some(response) = config_lock.overrides.get(&name) {
                 if verbosity > 0 {
                     let address = response.iter().map(|n| n.to_string()).collect::<Vec<String>>().join(".");
                     println!("{:?} was overwritten with {:?}!", name.clone(), address);

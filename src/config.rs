@@ -35,6 +35,8 @@ pub struct Config {
 
     #[serde(serialize_with = "toml::ser::tables_last")]
     pub overrides: HashMap<String, Vec<u8>>,
+    #[serde(serialize_with = "toml::ser::tables_last", default)]
+    pub network_overrides: HashMap<String, HashMap<String, Vec<u8>>>,
 }
 
 impl Default for Config {
@@ -51,6 +53,7 @@ impl Default for Config {
             filter_format: FilterFormat::Vector,
             filter_version: FilterVersion::Blu,
             overrides: HashMap::default(),
+            network_overrides: HashMap::default(),
             server_closing: false,
             small: true,
             verbosity: 0,
