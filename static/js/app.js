@@ -6,12 +6,15 @@ import {
     getAllowedDomains,
     getAutoUpdateFilter,
     getOverrides,
+    getNetworkOverrides,
     postAutoUpdateFilter,
     postAllowedDomains,
     postUpdateFilter,
     postOverride,
+    postNetworkOverride,
     deleteAllowedDomains,
     deleteOverride,
+    deleteNetworkOverride,
     postDisable,
 } from './network.js';
 
@@ -25,6 +28,7 @@ document.getElementById('login-button').addEventListener('click', main);
 document.getElementById('reload').addEventListener('click', main);
 document.getElementById('add-domain-name-button').addEventListener('click', addAllowedDomain);
 document.getElementById('overrides-add').addEventListener('click', addOverride);
+document.getElementById('network-overrides-add').addEventListener('click', addNetworkOverride);
 document.getElementById('update-filter').addEventListener('click', updateFilter);
 document.getElementById('auto-update-button').addEventListener('click', updateAutoUpdateFilter);
 document.getElementById('auto-update-checkbox').addEventListener('change', toggleAutoUpdateTextbox);
@@ -66,6 +70,7 @@ function main() {
         .then(showInstrumentation)
         .then(showAllowedDomains)
         .then(showOverrides)
+        .then(showNetworkOverrides)
         .then(showAutoUpdate)
         .catch(e => {
             alert(e);
@@ -341,4 +346,49 @@ function toggleAutoUpdateTextbox() {
 
 function disable() {
     postDisable().then(main);
+}
+
+function showNetworkOverrides() {
+    return getNetworkOverrides().then(networkOverrides => {
+        const table = document.getElementById('network-overrides-domains');
+        table.innerHTML = "";
+        
+        for(const [cidr, domainMap] of Object.entries(networkOverrides)) {
+            for(const [domain, address] of Object.entries(domainMap)) {
+                const row = table.insertRow(0);
+                const cell0 = row.insertCell(0);
+                const cell1 = row.insertCell(1);
+                const cell2 = row.insertCell(2);
+                const cell3 = row.insertCell(3);
+                const image = document.createElement('img');
+                image.src = 'icons/trash-solid.svg';
+                image.alt = 'Trash icon';
+                image.className = 'remove-icon';
+                image.addEventListener('click', () => removeNetworkOverride(cidr, domain))
+                cell0.innerHTML = cidr;
+                cell1.innerHTML = domain;
+                cell2.innerHTML = address.join(".");
+                cell3.appendChild(image);
+                cell3.className = 'remove-allowed-domains-column';
+            }
+        }
+
+        return Promise.resolve();
+    });
+}
+
+function addNetworkOverride() {
+    const cidr = document.getElementById('network-overrides-cidr').value;
+    const domain = document.getElementById('network-overrides-domain').value;
+    const address = document.getElementById('network-overrides-address').value;
+    
+    if (cidr === '' || domain === '' || address === '') {
+        return;
+    }
+
+    postNetworkOverride(cidr, domain, address).then(main);
+}
+
+function removeNetworkOverride(cidr, domain) {
+    deleteNetworkOverride(cidr, domain).then(main);
 }

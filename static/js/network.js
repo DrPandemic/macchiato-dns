@@ -79,3 +79,15 @@ export function postOverride(name, address) {
 export function postDisable() {
     return doCall('disable', 'POST');
 }
+
+export function getNetworkOverrides() {
+    return doCall('network-overrides');
+}
+
+export function postNetworkOverride(cidr, domain, address) {
+    return doCall('network-overrides', 'POST', { cidr: cidr, domain: domain, address: address });
+}
+
+export function deleteNetworkOverride(cidr, domain) {
+    return doCall('network-overrides', 'DELETE', { cidr: cidr, domain: domain });
+}

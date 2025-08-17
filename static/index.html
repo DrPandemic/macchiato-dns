@@ -102,6 +102,26 @@
                     </table>
                 </div>
 
+                <div class="grid-item allowed-list">
+                    <h2>Network Overrides</h2>
+                    <input type="text" id="network-overrides-cidr" placeholder="CIDR (e.g., 192.168.1.0/24)">
+                    <input type="text" id="network-overrides-domain" placeholder="Domain name">
+                    <input type="text" id="network-overrides-address" placeholder="Address">
+                    <button id="network-overrides-add">Add</button><br>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Network</th>
+                                <th>Domain</th>
+                                <th>Address</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="network-overrides-domains">
+                        </tbody>
+                    </table>
+                </div>
+
                 <div class="grid-item">
                     <h2>Filter List</h2>
                     <div>

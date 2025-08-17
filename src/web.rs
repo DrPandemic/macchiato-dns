@@ -174,6 +174,19 @@ struct DomainWithAddress {
     name: String,
     address: String,
 }
+
+#[derive(Deserialize)]
+struct NetworkOverride {
+    cidr: String,
+    domain: String,
+    address: String,
+}
+
+#[derive(Deserialize)]
+struct NetworkOverrideDelete {
+    cidr: String,
+    domain: String,
+}
 #[post("/overrides")]
 async fn post_overrides(domain: web::Json<DomainWithAddress>, data: web::Data<AppState>) -> actix_web::Result<String> {
     let mut config = data.config.lock().unwrap();
@@ -199,6 +212,59 @@ async fn disable(data: web::Data<AppState>)  -> actix_web::Result<String> {
     let mut config = data.config.lock().unwrap();
 
     config.disabled_until = now_as_secs() + 60 * 15;
+
+    let saved = config.save();
+
+    match saved {
+        Err(err) => Err(error::ErrorInternalServerError(err)),
+        _ => Ok("{}".to_string()),
+    }
+}
+
+#[get("/network-overrides")]
+async fn get_network_overrides(data: web::Data<AppState>) -> Result<HttpResponse, Error> {
+    let config = data.config.lock().unwrap();
+    let body = serde_json::to_string(&config.network_overrides).unwrap();
+
+    Ok(HttpResponse::Ok().content_type("application/json").body(body))
+}
+
+#[post("/network-overrides")]
+async fn post_network_overrides(override_data: web::Json<NetworkOverride>, data: web::Data<AppState>) -> actix_web::Result<String> {
+    let mut config = data.config.lock().unwrap();
+    let address: Result<Vec<u8>, std::num::ParseIntError> =
+        override_data.address.split(".").map(|s| s.parse::<u8>()).collect();
+
+    match address {
+        Ok(address) => {
+            config.network_overrides
+                .entry(override_data.cidr.clone())
+                .or_insert_with(std::collections::HashMap::new)
+                .insert(override_data.domain.clone(), address);
+
+            let saved = config.save();
+
+            match saved {
+                Err(err) => Err(error::ErrorInternalServerError(err)),
+                _ => Ok("{}".to_string()),
+            }
+        }
+        Err(err) => Err(error::ErrorBadRequest(err)),
+    }
+}
+
+#[delete("/network-overrides")]
+async fn delete_network_overrides(override_data: web::Json<NetworkOverrideDelete>, data: web::Data<AppState>) -> actix_web::Result<String> {
+    let mut config = data.config.lock().unwrap();
+
+    if let Some(network_map) = config.network_overrides.get_mut(&override_data.cidr) {
+        network_map.remove(&override_data.domain);
+
+        // Remove the network entry if it's empty
+        if network_map.is_empty() {
+            config.network_overrides.remove(&override_data.cidr);
+        }
+    }
 
     let saved = config.save();
 
@@ -247,12 +313,15 @@ pub async fn start_web(
                     .service(get_allowed_domains)
                     .service(get_auto_update_filter)
                     .service(get_overrides)
+                    .service(get_network_overrides)
                     .service(post_auto_update_filter)
                     .service(post_allowed_domains)
                     .service(post_update_filter)
                     .service(post_overrides)
+                    .service(post_network_overrides)
                     .service(delete_allowed_domains)
                     .service(delete_overrides)
+                    .service(delete_network_overrides)
                     .service(disable)
                     .service(metrics),
             )
