@@ -128,21 +128,6 @@ impl Message {
         })
     }
 
-    pub fn set_rcode(&mut self, rcode: RCode) -> Result<(), Box<dyn Error>> {
-        let data = self.buffer.get_mut(3).ok_or(MalformedMessageError)?;
-        let code = match rcode {
-            RCode::NoError => 0b0,
-            RCode::FormatError => 0b1,
-            RCode::ServerFailure => 0b10,
-            RCode::NameError => 0b11,
-            RCode::NotImplemented => 0b100,
-            RCode::Refused => 0b101,
-            _ => 0b1111,
-        };
-        *data = (*data & 0b11110000) | (code & 0b00001111);
-        Ok(())
-    }
-
     pub fn qdcount(&self) -> Result<u16, Box<dyn Error>> {
         Ok(parse_u16(&self.buffer, 4)?)
     }
@@ -329,18 +314,6 @@ pub fn generate_deny_response<'a>(query: &'a Message) -> Result<Message, Box<dyn
     // Means don't understand DNSSEC. AD bit
     message.set_ad(false)?;
     message.add_answer(generate_answer_a(&query.question()?.qname()?, vec![0, 0, 0, 0]))?;
-
-    Ok(message)
-}
-
-pub fn generate_servfail_response<'a>(query: &'a Message) -> Result<Message, Box<dyn Error>> {
-    let mut message = Message {
-        buffer: query.buffer.clone(),
-    };
-
-    message.set_qr(true)?;
-    message.set_ad(false)?;
-    message.set_rcode(RCode::ServerFailure)?;
 
     Ok(message)
 }

@@ -6,7 +6,6 @@ where
     T: Clone,
 {
     container: VecDeque<T>,
-    capacity: usize,
 }
 
 pub struct RingBufferIntoIterator<T>
@@ -31,13 +30,13 @@ where
     pub fn new(capacity: usize) -> RingBuffer<T> {
         RingBuffer {
             container: VecDeque::with_capacity(capacity),
-            capacity,
         }
     }
 
     pub fn push(&mut self, value: T) {
-        if self.container.len() >= self.capacity {
-            self.container.pop_back();
+        // VecDeque always allocate 1 more, https://doc.rust-lang.org/src/alloc/collections/vec_deque.rs.html#485
+        if self.container.capacity() - 1 <= self.len() {
+            self.container.truncate(self.container.capacity() - 2);
         }
         self.container.push_front(value);
     }

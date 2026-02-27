@@ -229,64 +229,30 @@ mod tests {
                 let mut filter = Filter::from_disk(Arc::clone(&config), PathBuf::from("./"))
                     .expect("Couldn't load filter");
 
-                assert_eq!(
-                    None,
-                    filter.filtered_by(&String::from("www.imateapot.org"), &*config.lock().unwrap())
-                );
-
                 assert_ne!(
                     None,
-                    filter.filtered_by(&String::from("www.imateapot.org"), &*config.lock().unwrap())
+                    filter.filtered_by(&String::from("imateapot.org"), &vec![])
                 );
                 assert_ne!(
                     None,
-                    filter.filtered_by(&String::from("m.www.imateapot.org"), &*config.lock().unwrap())
-                );
-                assert_eq!(None, filter.filtered_by(&String::from("imateapot.ca"), &*config.lock().unwrap()));
-                assert_ne!(
-                    None,
-                    filter.filtered_by(&String::from("www.imateapot.info"), &*config.lock().unwrap())
+                    filter.filtered_by(&String::from("www.imateapot.org"), &vec![])
                 );
                 assert_ne!(
                     None,
-                    filter.filtered_by(&String::from("m.www.imateapot.info"), &*config.lock().unwrap())
+                    filter.filtered_by(&String::from("m.www.imateapot.org"), &vec![])
                 );
-                assert_eq!(None, filter.filtered_by(&String::from("imateapot.info"), &*config.lock().unwrap()));
-                assert_eq!(None, filter.filtered_by(&String::from("org"), &*config.lock().unwrap()));
-                assert_eq!(None, filter.filtered_by(&String::from("com"), &*config.lock().unwrap()));
-
-                let allowed = vec![std::string::String::from("imateapot.org")];
-                config.lock().unwrap().allowed_domains = allowed;
-
-                assert_eq!(
-                    None,
-                    filter.filtered_by(&String::from("imateapot.org"), &*config.lock().unwrap())
-                );
-                assert_eq!(
-                    None,
-                    filter.filtered_by(&String::from("www.imateapot.org"), &*config.lock().unwrap())
-                );
-
-                assert_eq!(
-                    None,
-                    filter.filtered_by(&String::from("www.imateapot.org"), &*config.lock().unwrap())
-                );
-                assert_eq!(
-                    None,
-                    filter.filtered_by(&String::from("m.www.imateapot.org"), &*config.lock().unwrap())
-                );
-                assert_eq!(None, filter.filtered_by(&String::from("imateapot.ca"), &*config.lock().unwrap()));
+                assert_eq!(None, filter.filtered_by(&String::from("imateapot.ca"), &vec![]));
                 assert_ne!(
                     None,
-                    filter.filtered_by(&String::from("www.imateapot.info"), &*config.lock().unwrap())
+                    filter.filtered_by(&String::from("www.imateapot.info"), &vec![])
                 );
                 assert_ne!(
                     None,
-                    filter.filtered_by(&String::from("m.www.imateapot.info"), &*config.lock().unwrap())
+                    filter.filtered_by(&String::from("m.www.imateapot.info"), &vec![])
                 );
-                assert_eq!(None, filter.filtered_by(&String::from("imateapot.info"), &*config.lock().unwrap()));
-                assert_eq!(None, filter.filtered_by(&String::from("org"), &*config.lock().unwrap()));
-                assert_eq!(None, filter.filtered_by(&String::from("com"), &*config.lock().unwrap()));
+                assert_eq!(None, filter.filtered_by(&String::from("imateapot.info"), &vec![]));
+                assert_eq!(None, filter.filtered_by(&String::from("org"), &vec![]));
+                assert_eq!(None, filter.filtered_by(&String::from("com"), &vec![]));
             });
     }
 
@@ -304,15 +270,13 @@ mod tests {
                     std::string::String::from("imateapot.org"),
                 ];
 
-                config.lock().unwrap().allowed_domains = allowed;
-
                 assert_eq!(
                     None,
-                    filter.filtered_by(&String::from("imateapot.org"), &*config.lock().unwrap())
+                    filter.filtered_by(&String::from("imateapot.org"), &allowed)
                 );
                 assert_eq!(
                     None,
-                    filter.filtered_by(&String::from("www.imateapot.org"), &*config.lock().unwrap())
+                    filter.filtered_by(&String::from("www.imateapot.org"), &allowed)
                 );
             });
     }
