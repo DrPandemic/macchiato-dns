@@ -144,13 +144,14 @@ pub fn spawn_remote_dns_query(
             } else {
                 let resolver = resolver_manager.lock().unwrap().get_resolver();
                 instrumentation.set_request_sent(resolver.0.clone());
-                match query_remote_dns_server_doh(resolver, query).await {
+                match query_remote_dns_server_doh(resolver, query.clone()).await {
                     Ok(result) => {
                         instrumentation.set_request_received();
                         (true, result)
                     }
                     Err(err) => {
-                        return log_error(&format!("Failed to send DoH, {}", err), verbosity);
+                        log_error(&format!("Failed to send DoH, {}", err), verbosity);
+                        (false, generate_servfail_response(&query).unwrap())
                     }
                 }
             }

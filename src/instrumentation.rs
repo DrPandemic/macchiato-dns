@@ -41,6 +41,10 @@ impl Instrumentation {
     pub fn remote_timing(&self) -> Duration {
         if let (Some(a), Some(b)) = (self.request_sent, self.request_received) {
             b.duration_since(a).unwrap_or(Duration::new(0, 0))
+        } else if self.request_sent.is_some() {
+            // If the request was sent but not received, it's a failure.
+            // We penalize it by giving it a high duration.
+            Duration::from_secs(10)
         } else {
             Duration::new(0, 0)
         }
