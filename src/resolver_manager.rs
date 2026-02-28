@@ -17,7 +17,7 @@ impl Default for ResolverManager {
                     Duration::new(0, 0),
                 ),
                 ("https://1.1.1.1/dns-query".to_string(), None, Duration::new(0, 0)),
-                ("https://9.9.9.9/dns-query".to_string(), None, Duration::new(0, 0)),
+                //("https://9.9.9.9/dns-query".to_string(), None, Duration::new(0, 0)),
             ],
         }
     }
