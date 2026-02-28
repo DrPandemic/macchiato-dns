@@ -41,6 +41,9 @@ impl Instrumentation {
     pub fn remote_timing(&self) -> Duration {
         if let (Some(a), Some(b)) = (self.request_sent, self.request_received) {
             b.duration_since(a).unwrap_or(Duration::new(0, 0))
+        } else if self.request_sent.is_some() {
+            // Sent but didn't receive a response
+            Duration::from_secs(10)
         } else {
             Duration::new(0, 0)
         }

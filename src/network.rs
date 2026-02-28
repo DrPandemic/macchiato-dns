@@ -8,6 +8,7 @@ use crate::resolver_manager::ResolverManager;
 
 use std::error::Error;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::time::Duration;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use tokio::net::UdpSocket;
@@ -123,6 +124,7 @@ pub fn spawn_remote_dns_query(
                 let cache = Arc::clone(&cache);
                 tokio::spawn(async move {
                     let resolver = resolver_manager.lock().unwrap().get_resolver();
+                    let resolver_url = resolver.0.clone();
                     match query_remote_dns_server_doh(resolver, query).await {
                         Ok(result) => {
                             cache.lock().unwrap().put(&result);
@@ -132,6 +134,7 @@ pub fn spawn_remote_dns_query(
                         }
                         Err(err) => {
                             log_error(&format!("Failed to send DoH, {}", err), verbosity);
+                            resolver_manager.lock().unwrap().update_resolver(resolver_url, Duration::from_secs(10));
                         }
                     }
                 });
@@ -143,14 +146,17 @@ pub fn spawn_remote_dns_query(
                 (!is_network_override, message)
             } else {
                 let resolver = resolver_manager.lock().unwrap().get_resolver();
-                instrumentation.set_request_sent(resolver.0.clone());
-                match query_remote_dns_server_doh(resolver, query).await {
+                let resolver_url = resolver.0.clone();
+                instrumentation.set_request_sent(resolver_url.clone());
+                match query_remote_dns_server_doh(resolver, query.clone()).await {
                     Ok(result) => {
                         instrumentation.set_request_received();
                         (true, result)
                     }
                     Err(err) => {
-                        return log_error(&format!("Failed to send DoH, {}", err), verbosity);
+                        log_error(&format!("Failed to send DoH, {}", err), verbosity);
+                        resolver_manager.lock().unwrap().update_resolver(resolver_url, Duration::from_secs(10));
+                        return;
                     }
                 }
             }
